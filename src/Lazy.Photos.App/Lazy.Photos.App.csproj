@@ -2,6 +2,7 @@
 
 	<PropertyGroup>
 		<TargetFrameworks>net10.0-android;net10.0-ios</TargetFrameworks>
+		<MauiVersion>10.0.10</MauiVersion>
 
 		<OutputType>Exe</OutputType>
 		<RootNamespace>Lazy.Photos.App</RootNamespace>
@@ -44,6 +45,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+		<PackageReference Include="CommunityToolkit.Maui" Version="13.0.0" />
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
 	</ItemGroup>
 

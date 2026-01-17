@@ -4,6 +4,8 @@
 <dict>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Lazy Photos needs access to your photo library to display your photos.</string>
 	<key>UIDeviceFamily</key>
 	<array>
 		<integer>1</integer>

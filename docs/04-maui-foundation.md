@@ -21,6 +21,15 @@ State and MVVM
 - Use CommunityToolkit.Mvvm for view models.
 - Keep view models thin and testable.
 
+Dotnet best practices
+- Enable nullable reference types and fix warnings early.
+- Prefer async/await end-to-end with CancellationToken support.
+- Use DI for services; avoid service locator patterns.
+- Centralize logging and use structured logs for errors.
+- Validate inputs and handle exceptions at boundaries.
+- Keep UI bindings compiled where possible and avoid heavy work on UI thread.
+- Format code using Microsoft .NET conventions and standard .editorconfig rules.
+
 Networking
 - HttpClientFactory with typed clients.
 - Resiliency policies for retries and timeouts.

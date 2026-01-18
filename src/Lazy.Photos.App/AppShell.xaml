@@ -3,12 +3,44 @@
     x:Class="Lazy.Photos.App.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:Lazy.Photos.App"
+    xmlns:photos="clr-namespace:Lazy.Photos.App.Features.Photos"
+    xmlns:search="clr-namespace:Lazy.Photos.App.Features.Search"
     Title="Lazy Photos">
 
-    <ShellContent
-        Title="Photos"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+    <Shell.TitleView>
+        <Grid Padding="12,6"
+              ColumnDefinitions="Auto,*,Auto"
+              BackgroundColor="White">
+            <Button Text="≡"
+                    FontSize="20"
+                    TextColor="#222"
+                    BackgroundColor="Transparent"
+                    Command="{Binding ShowSignInCommand}" />
+            <Label Grid.Column="1"
+                   Text="Lazy Photos"
+                   HorizontalTextAlignment="Center"
+                   VerticalTextAlignment="Center"
+                   FontSize="20"
+                   FontAttributes="Bold"
+                   TextColor="#222" />
+            <Button Grid.Column="2"
+                    Text="○"
+                    FontSize="20"
+                    TextColor="#222"
+                    BackgroundColor="Transparent"
+                    Command="{Binding ShowSignInCommand}" />
+        </Grid>
+    </Shell.TitleView>
+
+    <TabBar>
+        <ShellContent
+            Title="Photos"
+            ContentTemplate="{DataTemplate photos:MainPage}"
+            Route="MainPage" />
+        <ShellContent
+            Title="Search"
+            ContentTemplate="{DataTemplate search:SearchPage}"
+            Route="SearchPage" />
+    </TabBar>
 
 </Shell>

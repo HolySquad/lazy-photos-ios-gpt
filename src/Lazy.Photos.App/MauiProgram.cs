@@ -1,5 +1,8 @@
 using CommunityToolkit.Maui;
-using Lazy.Photos.App.Services;
+using Lazy.Photos.App.Features.Photos;
+using Lazy.Photos.App.Features.Photos.Services;
+using Lazy.Photos.App.Features.SignIn;
+using Lazy.Photos.App.Features.SignIn.Services;
 using Microsoft.Extensions.Logging;
 
 namespace Lazy.Photos.App;
@@ -19,8 +22,19 @@ public static class MauiProgram
 			});
 
 		builder.Services.AddSingleton<IPhotoLibraryService, PhotoLibraryService>();
+		builder.Services.AddSingleton<IPhotoNavigationService, PhotoNavigationService>();
+		builder.Services.AddSingleton<ISignInPopupService, SignInPopupService>();
+		builder.Services.AddSingleton<ISignInFlowService, SignInFlowService>();
+		builder.Services.AddSingleton<AppShellViewModel>();
 		builder.Services.AddTransient<MainPageViewModel>();
 		builder.Services.AddTransient<MainPage>();
+		builder.Services.AddTransient<PhotoViewerViewModel>();
+		builder.Services.AddTransient<PhotoViewerPage>();
+		builder.Services.AddTransient<SignInPopupViewModel>();
+		builder.Services.AddTransient<SignInPopup>();
+		builder.Services.AddTransient<SignInViewModel>();
+		builder.Services.AddTransient<SignInPage>();
+		builder.Services.AddSingleton<AppShell>();
 
 #if DEBUG
 		builder.Logging.AddDebug();

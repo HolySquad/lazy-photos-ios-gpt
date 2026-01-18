@@ -1,20 +1,29 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Lazy.Photos.App.Models;
-using Lazy.Photos.App.Services;
+using Lazy.Photos.App.Features.Photos.Models;
+using Lazy.Photos.App.Features.Photos.Services;
 using Microsoft.Maui.ApplicationModel;
+using MauiPermissions = Microsoft.Maui.ApplicationModel.Permissions;
+#if ANDROID
+using Lazy.Photos.App.Features.Photos.Permissions;
+#endif
 
-namespace Lazy.Photos.App;
+namespace Lazy.Photos.App.Features.Photos;
 
 public partial class MainPageViewModel : ObservableObject
 {
+	private static readonly string[] SectionTitles = { "Download", "Pictures", "Movies" };
 	private readonly IPhotoLibraryService _photoLibraryService;
+	private readonly IPhotoNavigationService _photoNavigationService;
 	private CancellationTokenSource? _loadCts;
 	private bool _loadedOnce;
 
 	[ObservableProperty]
 	private ObservableCollection<PhotoItem> photos = new();
+
+	[ObservableProperty]
+	private ObservableCollection<PhotoSection> photoSections = new();
 
 	[ObservableProperty]
 	private bool isBusy;
@@ -31,9 +40,10 @@ public partial class MainPageViewModel : ObservableObject
 	[ObservableProperty]
 	private double cellSize = 120;
 
-	public MainPageViewModel(IPhotoLibraryService photoLibraryService)
+	public MainPageViewModel(IPhotoLibraryService photoLibraryService, IPhotoNavigationService photoNavigationService)
 	{
 		_photoLibraryService = photoLibraryService;
+		_photoNavigationService = photoNavigationService;
 	}
 
 	partial void OnErrorMessageChanged(string? value)
@@ -84,6 +94,8 @@ public partial class MainPageViewModel : ObservableObject
 			Photos.Clear();
 			foreach (var item in items)
 				Photos.Add(item);
+
+			RebuildSections();
 		}
 		catch (OperationCanceledException)
 		{
@@ -99,26 +111,45 @@ public partial class MainPageViewModel : ObservableObject
 		}
 	}
 
+	private void RebuildSections()
+	{
+		PhotoSections.Clear();
+		if (Photos.Count == 0)
+			return;
+
+		foreach (var title in SectionTitles)
+			PhotoSections.Add(new PhotoSection(title, Photos));
+	}
+
+	[RelayCommand]
+	private async Task OpenPhotoAsync(PhotoItem? photo)
+	{
+		if (photo == null)
+			return;
+
+		await _photoNavigationService.ShowPhotoAsync(photo);
+	}
+
 	private static async Task<bool> EnsurePhotosPermissionAsync()
 	{
 #if ANDROID
 		PermissionStatus status;
 		if (OperatingSystem.IsAndroidVersionAtLeast(33))
 		{
-			status = await Permissions.CheckStatusAsync<ReadMediaImagesPermission>();
+			status = await MauiPermissions.CheckStatusAsync<ReadMediaImagesPermission>();
 			if (status != PermissionStatus.Granted)
-				status = await Permissions.RequestAsync<ReadMediaImagesPermission>();
+				status = await MauiPermissions.RequestAsync<ReadMediaImagesPermission>();
 		}
 		else
 		{
-			status = await Permissions.CheckStatusAsync<ReadExternalStoragePermission>();
+			status = await MauiPermissions.CheckStatusAsync<ReadExternalStoragePermission>();
 			if (status != PermissionStatus.Granted)
-				status = await Permissions.RequestAsync<ReadExternalStoragePermission>();
+				status = await MauiPermissions.RequestAsync<ReadExternalStoragePermission>();
 		}
 #else
-		var status = await Permissions.CheckStatusAsync<Permissions.Photos>();
+		var status = await MauiPermissions.CheckStatusAsync<MauiPermissions.Photos>();
 		if (status != PermissionStatus.Granted)
-			status = await Permissions.RequestAsync<Permissions.Photos>();
+			status = await MauiPermissions.RequestAsync<MauiPermissions.Photos>();
 #endif
 		return status == PermissionStatus.Granted;
 	}

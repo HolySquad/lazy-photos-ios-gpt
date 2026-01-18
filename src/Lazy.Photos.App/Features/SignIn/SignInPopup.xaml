@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<toolkit:Popup xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+               x:Class="Lazy.Photos.App.Features.SignIn.SignInPopup"
+               CanBeDismissedByTappingOutsideOfPopup="True">
+
+    <Grid BackgroundColor="#80000000"
+          Padding="24">
+        <Border Stroke="#00000000"
+                BackgroundColor="#F2F3F8"
+                StrokeShape="RoundRectangle 24"
+                Padding="16"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                WidthRequest="320">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+                  RowSpacing="14">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Button Text="X"
+                            BackgroundColor="Transparent"
+                            TextColor="#222"
+                            Command="{Binding CloseCommand}" />
+                    <Label Grid.Column="1"
+                           Text="Lazy Photos"
+                           HorizontalTextAlignment="Center"
+                           VerticalTextAlignment="Center"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           TextColor="#111" />
+                </Grid>
+
+                <Button Grid.Row="1"
+                        Text="Sign In"
+                        BackgroundColor="#3F5A92"
+                        TextColor="White"
+                        CornerRadius="22"
+                        HeightRequest="44"
+                        Command="{Binding SignInCommand}" />
+
+                <Button Grid.Row="2"
+                        Text="Photos settings"
+                        BackgroundColor="Transparent"
+                        TextColor="#222"
+                        HorizontalOptions="Start"
+                        Command="{Binding OpenSettingsCommand}" />
+
+                <Button Grid.Row="3"
+                        Text="Help &amp; feedback"
+                        BackgroundColor="Transparent"
+                        TextColor="#222"
+                        HorizontalOptions="Start"
+                        Command="{Binding OpenHelpCommand}" />
+
+                <HorizontalStackLayout Grid.Row="4"
+                                       Spacing="8"
+                                       HorizontalOptions="Center">
+                    <Button Text="Privacy Policy"
+                            BackgroundColor="Transparent"
+                            TextColor="#333"
+                            Command="{Binding OpenPrivacyCommand}" />
+                    <Label Text="|"
+                           TextColor="#333"
+                           VerticalTextAlignment="Center" />
+                    <Button Text="Terms of Service"
+                            BackgroundColor="Transparent"
+                            TextColor="#333"
+                            Command="{Binding OpenTermsCommand}" />
+                </HorizontalStackLayout>
+            </Grid>
+        </Border>
+    </Grid>
+
+</toolkit:Popup>

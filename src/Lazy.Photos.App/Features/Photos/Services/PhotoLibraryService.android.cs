@@ -1,9 +1,10 @@
+#if ANDROID
 using Android.Content;
 using Android.Provider;
-using Lazy.Photos.App.Models;
+using Lazy.Photos.App.Features.Photos.Models;
 using System.IO;
 
-namespace Lazy.Photos.App.Services;
+namespace Lazy.Photos.App.Features.Photos.Services;
 
 public partial class PhotoLibraryService
 {
@@ -50,10 +51,18 @@ public partial class PhotoLibraryService
 				Id = id.ToString(),
 				DisplayName = name,
 				TakenAt = takenAt,
-				Thumbnail = imageSource
+				Thumbnail = imageSource,
+				FullImage = imageSource
 			});
 		}
 
 		return Task.FromResult<IReadOnlyList<PhotoItem>>(items);
 	}
+
+	private partial Task<ImageSource?> GetFullImageAsyncCore(PhotoItem photo, CancellationToken ct)
+	{
+		ct.ThrowIfCancellationRequested();
+		return Task.FromResult(photo.FullImage ?? photo.Thumbnail);
+	}
 }
+#endif

@@ -1,11 +1,11 @@
 #if IOS
 using CoreGraphics;
 using Foundation;
-using Lazy.Photos.App.Models;
+using Lazy.Photos.App.Features.Photos.Models;
 using Photos;
 using UIKit;
 
-namespace Lazy.Photos.App.Services;
+namespace Lazy.Photos.App.Features.Photos.Services;
 
 public partial class PhotoLibraryService
 {
@@ -35,11 +35,24 @@ public partial class PhotoLibraryService
 			{
 				Id = asset.LocalIdentifier,
 				TakenAt = asset.CreationDate?.ToDateTimeOffset(),
-				Thumbnail = thumbnail
+				Thumbnail = thumbnail,
+				FullImage = null
 			});
 		}
 
 		return items;
+	}
+
+	private partial Task<ImageSource?> GetFullImageAsyncCore(PhotoItem photo, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(photo.Id))
+			return Task.FromResult<ImageSource?>(null);
+
+		using var fetchResult = PHAsset.FetchAssetsUsingLocalIdentifiers(new[] { photo.Id }, null);
+		if (fetchResult.Count == 0 || fetchResult[0] is not PHAsset asset)
+			return Task.FromResult<ImageSource?>(null);
+
+		return CreateFullImageSourceAsync(asset, ct);
 	}
 
 	private static Task<ImageSource?> CreateImageSourceAsync(PHAsset asset, CGSize size, CancellationToken ct)
@@ -66,6 +79,33 @@ public partial class PhotoLibraryService
 				}
 
 				var data = image.AsJPEG(0.7f);
+				if (data == null)
+				{
+					tcs.TrySetResult(null);
+					return;
+				}
+
+				tcs.TrySetResult(ImageSource.FromStream(() => data.AsStream()));
+			});
+
+		ct.Register(() => tcs.TrySetCanceled(ct));
+		return tcs.Task;
+	}
+
+	private static Task<ImageSource?> CreateFullImageSourceAsync(PHAsset asset, CancellationToken ct)
+	{
+		var tcs = new TaskCompletionSource<ImageSource?>();
+		var requestOptions = new PHImageRequestOptions
+		{
+			DeliveryMode = PHImageRequestOptionsDeliveryMode.HighQualityFormat,
+			NetworkAccessAllowed = true
+		};
+
+		PHImageManager.DefaultManager.RequestImageData(
+			asset,
+			requestOptions,
+			(data, _, _, _) =>
+			{
 				if (data == null)
 				{
 					tcs.TrySetResult(null);

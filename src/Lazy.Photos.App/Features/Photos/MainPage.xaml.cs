@@ -1,4 +1,4 @@
-namespace Lazy.Photos.App;
+namespace Lazy.Photos.App.Features.Photos;
 
 public partial class MainPage : ContentPage
 {
@@ -9,8 +9,8 @@ public partial class MainPage : ContentPage
 	}
 
 	public MainPage()
-		: this(Microsoft.Maui.MauiApplication.Current?.Services?.GetService<MainPageViewModel>()
-			?? new MainPageViewModel(new Services.PhotoLibraryService()))
+		: this(Microsoft.Maui.IPlatformApplication.Current?.Services?.GetService<MainPageViewModel>()
+			?? new MainPageViewModel(new Services.PhotoLibraryService(), new Services.PhotoNavigationService()))
 	{
 	}
 

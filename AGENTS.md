@@ -2,7 +2,8 @@
 
 Purpose
 These instructions define the repo-specific requirements and documentation workflow for LazyPhotos. Follow them on every change.
-
+Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
+Run a build before presenting results to the user; if a build cannot be run, say why.
 Project principles (always apply)
 - Self-hosted-first backend that runs on Raspberry Pi (ARM64), with cloud as an optional scale-up path.
 - Mobile performance and security are top priorities; the app must remain usable on iPhone 8-class hardware.

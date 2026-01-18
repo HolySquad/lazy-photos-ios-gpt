@@ -1,6 +1,6 @@
-using Lazy.Photos.App.Models;
+using Lazy.Photos.App.Features.Photos.Models;
 
-namespace Lazy.Photos.App.Services;
+namespace Lazy.Photos.App.Features.Photos.Services;
 
 public partial class PhotoLibraryService : IPhotoLibraryService
 {
@@ -9,5 +9,11 @@ public partial class PhotoLibraryService : IPhotoLibraryService
 		return GetRecentPhotosAsyncCore(maxCount, ct);
 	}
 
+	public Task<ImageSource?> GetFullImageAsync(PhotoItem photo, CancellationToken ct)
+	{
+		return GetFullImageAsyncCore(photo, ct);
+	}
+
 	private partial Task<IReadOnlyList<PhotoItem>> GetRecentPhotosAsyncCore(int maxCount, CancellationToken ct);
+	private partial Task<ImageSource?> GetFullImageAsyncCore(PhotoItem photo, CancellationToken ct);
 }

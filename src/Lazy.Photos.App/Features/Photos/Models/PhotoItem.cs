@@ -1,4 +1,4 @@
-namespace Lazy.Photos.App.Models;
+namespace Lazy.Photos.App.Features.Photos.Models;
 
 public sealed class PhotoItem
 {
@@ -6,4 +6,5 @@ public sealed class PhotoItem
 	public string? DisplayName { get; set; }
 	public DateTimeOffset? TakenAt { get; set; }
 	public ImageSource? Thumbnail { get; set; }
+	public ImageSource? FullImage { get; set; }
 }

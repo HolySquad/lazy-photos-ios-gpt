@@ -11,6 +11,7 @@ public partial class App : Application
 
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
-		return new Window(new AppShell());
+		var shell = Microsoft.Maui.IPlatformApplication.Current?.Services?.GetService<AppShell>() ?? new AppShell();
+		return new Window(shell);
 	}
 }

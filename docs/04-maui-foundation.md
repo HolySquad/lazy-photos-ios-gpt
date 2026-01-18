@@ -1,9 +1,12 @@
 # Step 4 - .NET MAUI App Foundation
 
 Project structure (example)
-- src/LazyPhotos.App (UI and app shell)
-- src/LazyPhotos.Core (models, interfaces, logic)
-- src/LazyPhotos.Data (API and storage)
+- src/Lazy.Photos.App (app shell, DI, resources)
+- src/Lazy.Photos.App/Features/Photos (pages, view models, models, services, permissions)
+- src/Lazy.Photos.App/Features/SignIn (pages, popup, view models, services)
+- src/Lazy.Photos.App/Features/Search (pages)
+- src/Lazy.Photos.Core (models, interfaces, logic)
+- src/Lazy.Photos.Data (API and storage)
 
 App basics
 - Shell navigation with tabs for Photos, Albums, Search, Settings.
@@ -46,7 +49,11 @@ Cross-platform services
 - MediaPicker for photo selection.
 - Permissions handling for Photos and Camera.
 
+Decisions needed
+- Confirm feature folder naming and scope for MAUI app (Photos, SignIn, Search).
+
 Deliverables
 - Solution skeleton and project references.
 - Baseline navigation and theming.
 - Core services for API, storage, and caching.
+- Feature-based app folder organization under Lazy.Photos.App/Features.

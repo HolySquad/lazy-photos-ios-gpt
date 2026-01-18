@@ -1,8 +1,9 @@
+#if ANDROID
 using Microsoft.Maui.ApplicationModel;
 
-namespace Lazy.Photos.App;
+namespace Lazy.Photos.App.Features.Photos.Permissions;
 
-public sealed class ReadMediaImagesPermission : Permissions.BasePlatformPermission
+public sealed class ReadMediaImagesPermission : Microsoft.Maui.ApplicationModel.Permissions.BasePlatformPermission
 {
 	public override (string androidPermission, bool isRuntime)[] RequiredPermissions =>
 		new[]
@@ -11,7 +12,7 @@ public sealed class ReadMediaImagesPermission : Permissions.BasePlatformPermissi
 		};
 }
 
-public sealed class ReadExternalStoragePermission : Permissions.BasePlatformPermission
+public sealed class ReadExternalStoragePermission : Microsoft.Maui.ApplicationModel.Permissions.BasePlatformPermission
 {
 	public override (string androidPermission, bool isRuntime)[] RequiredPermissions =>
 		new[]
@@ -19,3 +20,4 @@ public sealed class ReadExternalStoragePermission : Permissions.BasePlatformPerm
 			(Android.Manifest.Permission.ReadExternalStorage, true)
 		};
 }
+#endif

@@ -42,6 +42,30 @@
                                    Aspect="AspectFill"
                                    HeightRequest="{Binding BindingContext.CellSize, Source={RelativeSource AncestorType={x:Type local:MainPage}}}"
                                    WidthRequest="{Binding BindingContext.CellSize, Source={RelativeSource AncestorType={x:Type local:MainPage}}}" />
+
+                            <Grid HorizontalOptions="End"
+                                  VerticalOptions="Start"
+                                  Margin="6,4">
+                                <Border BackgroundColor="#2E7D32"
+                                        WidthRequest="12"
+                                        HeightRequest="12"
+                                        StrokeShape="Ellipse"
+                                        IsVisible="{Binding IsSynced}" />
+                                <Border BackgroundColor="#EF6C00"
+                                        WidthRequest="12"
+                                        HeightRequest="12"
+                                        StrokeShape="Ellipse"
+                                        IsVisible="True">
+                                    <Border.Triggers>
+                                        <DataTrigger TargetType="Border"
+                                                     Binding="{Binding IsSynced}"
+                                                     Value="True">
+                                            <Setter Property="IsVisible" Value="False" />
+                                        </DataTrigger>
+                                    </Border.Triggers>
+                                </Border>
+                            </Grid>
+
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Command="{Binding BindingContext.OpenPhotoCommand, Source={RelativeSource AncestorType={x:Type local:MainPage}}}"
                                                       CommandParameter="{Binding .}" />

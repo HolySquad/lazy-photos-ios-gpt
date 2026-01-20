@@ -4,6 +4,8 @@ using Foundation;
 using Lazy.Photos.App.Features.Photos.Models;
 using Photos;
 using UIKit;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Lazy.Photos.App.Features.Photos.Services;
 
@@ -31,12 +33,17 @@ public partial class PhotoLibraryService
 			if (thumbnail == null)
 				continue;
 
+			var hash = await ComputeHashAsync(asset, ct);
+
 			items.Add(new PhotoItem
 			{
 				Id = asset.LocalIdentifier,
 				TakenAt = asset.CreationDate?.ToDateTimeOffset(),
+				Hash = hash,
+				FolderName = "Camera Roll",
 				Thumbnail = thumbnail,
-				FullImage = null
+				FullImage = null,
+				IsSynced = false
 			});
 		}
 
@@ -113,6 +120,39 @@ public partial class PhotoLibraryService
 				}
 
 				tcs.TrySetResult(ImageSource.FromStream(() => data.AsStream()));
+			});
+
+		ct.Register(() => tcs.TrySetCanceled(ct));
+		return tcs.Task;
+	}
+
+	private static Task<string?> ComputeHashAsync(PHAsset asset, CancellationToken ct)
+	{
+		var tcs = new TaskCompletionSource<string?>();
+		var requestOptions = new PHImageRequestOptions
+		{
+			DeliveryMode = PHImageRequestOptionsDeliveryMode.HighQualityFormat,
+			NetworkAccessAllowed = true
+		};
+
+		PHImageManager.DefaultManager.RequestImageData(
+			asset,
+			requestOptions,
+			(data, _, _, _) =>
+			{
+				if (data == null)
+				{
+					tcs.TrySetResult(null);
+					return;
+				}
+
+				using var sha = SHA256.Create();
+				var bytes = data.ToArray();
+				var hashBytes = sha.ComputeHash(bytes);
+				var sb = new StringBuilder(hashBytes.Length * 2);
+				foreach (var b in hashBytes)
+					sb.Append(b.ToString("x2"));
+				tcs.TrySetResult(sb.ToString());
 			});
 
 		ct.Register(() => tcs.TrySetCanceled(ct));

@@ -12,6 +12,15 @@ Core components
 - Optional edge cache or CDN when exposed publicly.
 - Server registration service to bind a self-hosted node to a LazyPhotos account.
 
+API contract (MVP)
+- Auth: POST /auth/login, POST /auth/refresh, POST /devices/register, POST /servers/claim.
+- Upload: POST /upload-sessions (hash-first dedupe, returns uploadUrl, chunkSize, alreadyExists), PUT /upload-sessions/{id}/chunks?offset=…, POST /upload-sessions/{id}/complete -> { photoId }.
+- Photos/albums: GET /photos?cursor=&limit=, GET /photos/{id}, GET /photos/{id}/download?size=thumb|medium|original (signed URL), POST /photos/{id}/metadata, DELETE /photos/{id}; POST /albums, PUT /albums/{id}, POST /albums/{id}/items, DELETE /albums/{id}/items/{photoId}, GET /albums.
+- Sync feed: GET /feed?cursor=&limit= -> { cursor, hasMore, items[{ type: photo|album|tombstone, data, updatedAt }]}.
+- Sharing: POST /share-links { photoId? albumId?, expiresAt? } -> { url, token }, DELETE /share-links/{id}.
+- Import tracking: POST /imports { source: takeout, hash } -> { importJobId }, GET /imports/{id} -> status/progress/errors.
+- OpenAPI stub: docs/openapi-mvp.yaml.
+
 Image pipeline
 - Upload initiation and chunked upload support.
 - File validation (type/size) and optional malware scan.

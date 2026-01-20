@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Lazy.Photos.App.Features.Photos.Models;
 using Lazy.Photos.App.Features.Photos.Services;
+using System.Linq;
 using Microsoft.Maui.ApplicationModel;
 using MauiPermissions = Microsoft.Maui.ApplicationModel.Permissions;
 #if ANDROID
@@ -13,9 +14,9 @@ namespace Lazy.Photos.App.Features.Photos;
 
 public partial class MainPageViewModel : ObservableObject
 {
-	private static readonly string[] SectionTitles = { "Download", "Pictures", "Movies" };
 	private readonly IPhotoLibraryService _photoLibraryService;
 	private readonly IPhotoNavigationService _photoNavigationService;
+	private readonly IPhotoSyncService _photoSyncService;
 	private CancellationTokenSource? _loadCts;
 	private bool _loadedOnce;
 
@@ -40,10 +41,14 @@ public partial class MainPageViewModel : ObservableObject
 	[ObservableProperty]
 	private double cellSize = 120;
 
-	public MainPageViewModel(IPhotoLibraryService photoLibraryService, IPhotoNavigationService photoNavigationService)
+	public MainPageViewModel(
+		IPhotoLibraryService photoLibraryService,
+		IPhotoNavigationService photoNavigationService,
+		IPhotoSyncService photoSyncService)
 	{
 		_photoLibraryService = photoLibraryService;
 		_photoNavigationService = photoNavigationService;
+		_photoSyncService = photoSyncService;
 	}
 
 	partial void OnErrorMessageChanged(string? value)
@@ -83,14 +88,10 @@ public partial class MainPageViewModel : ObservableObject
 
 		try
 		{
-			var permissionGranted = await EnsurePhotosPermissionAsync();
-			if (!permissionGranted)
-			{
-				ErrorMessage = "Photo permission is required to show device photos.";
-				return;
-			}
+			var remoteItems = await TryLoadRemoteAsync(_loadCts.Token);
+			var deviceItems = await LoadDevicePhotosAsync(_loadCts.Token);
+			var items = MergePhotos(remoteItems, deviceItems);
 
-			var items = await _photoLibraryService.GetRecentPhotosAsync(300, _loadCts.Token);
 			Photos.Clear();
 			foreach (var item in items)
 				Photos.Add(item);
@@ -117,8 +118,12 @@ public partial class MainPageViewModel : ObservableObject
 		if (Photos.Count == 0)
 			return;
 
-		foreach (var title in SectionTitles)
-			PhotoSections.Add(new PhotoSection(title, Photos));
+		var grouped = Photos
+			.GroupBy(p => string.IsNullOrWhiteSpace(p.FolderName) ? "Unknown" : p.FolderName)
+			.OrderByDescending(g => g.Max(p => p.TakenAt ?? DateTimeOffset.MinValue));
+
+		foreach (var group in grouped)
+			PhotoSections.Add(new PhotoSection(group.Key, group));
 	}
 
 	[RelayCommand]
@@ -152,5 +157,67 @@ public partial class MainPageViewModel : ObservableObject
 			status = await MauiPermissions.RequestAsync<MauiPermissions.Photos>();
 #endif
 		return status == PermissionStatus.Granted;
+	}
+
+	private async Task<IReadOnlyList<PhotoItem>> TryLoadRemoteAsync(CancellationToken ct)
+	{
+		try
+		{
+			return await _photoSyncService.GetRecentAsync(300, ct);
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
+		catch
+		{
+			return Array.Empty<PhotoItem>();
+		}
+	}
+
+	private async Task<IReadOnlyList<PhotoItem>> LoadDevicePhotosAsync(CancellationToken ct)
+	{
+		var permissionGranted = await EnsurePhotosPermissionAsync();
+		if (!permissionGranted)
+		{
+			ErrorMessage = "Showing cloud photos. Photo permission is required to show device photos.";
+			return Array.Empty<PhotoItem>();
+		}
+
+		return await _photoLibraryService.GetRecentPhotosAsync(300, ct);
+	}
+
+	private static IReadOnlyList<PhotoItem> MergePhotos(
+		IReadOnlyList<PhotoItem> remoteItems,
+		IReadOnlyList<PhotoItem> deviceItems)
+	{
+		var merged = new Dictionary<string, PhotoItem>(StringComparer.OrdinalIgnoreCase);
+
+		foreach (var item in remoteItems)
+		{
+			var key = BuildKey(item);
+			if (!merged.ContainsKey(key))
+				merged[key] = item;
+		}
+
+		foreach (var item in deviceItems)
+		{
+			var key = BuildKey(item);
+			if (!merged.ContainsKey(key))
+				merged[key] = item;
+		}
+
+		return merged.Values.ToList();
+	}
+
+	private static string BuildKey(PhotoItem item)
+	{
+		if (!string.IsNullOrWhiteSpace(item.Hash))
+			return $"hash:{item.Hash}";
+
+		if (!string.IsNullOrWhiteSpace(item.Id))
+			return $"id:{item.Id}";
+
+		return $"fallback:{item.DisplayName}:{item.TakenAt?.UtcDateTime:o}";
 	}
 }

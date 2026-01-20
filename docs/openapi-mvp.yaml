@@ -1,0 +1,774 @@
+openapi: 3.0.1
+info:
+  title: LazyPhotos API (MVP)
+  version: "0.1.0"
+servers:
+  - url: http://localhost:5000
+    description: Self-hosted baseline
+paths:
+  /auth/login:
+    post:
+      summary: Login with email/password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Refreshed token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefreshResponse"
+  /devices/register:
+    post:
+      summary: Register device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceRegisterRequest"
+      responses:
+        "200":
+          description: Registered device
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceRegisterResponse"
+  /servers/claim:
+    post:
+      summary: Claim self-hosted server
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServerClaimRequest"
+      responses:
+        "200":
+          description: Claimed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerClaimResponse"
+  /upload-sessions:
+    post:
+      summary: Create upload session (hash-first dedupe)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadSessionRequest"
+      responses:
+        "200":
+          description: Session created or re-used
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadSessionResponse"
+  /upload-sessions/{id}/chunks:
+    put:
+      summary: Upload chunk
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: offset
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "204":
+          description: Chunk accepted
+  /upload-sessions/{id}/complete:
+    post:
+      summary: Complete upload session
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadCompleteRequest"
+      responses:
+        "200":
+          description: Completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadCompleteResponse"
+  /photos:
+    get:
+      summary: List photos for gallery bootstrap
+      parameters:
+        - in: query
+          name: cursor
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Photos page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PhotosPageResponse"
+  /photos/{id}:
+    get:
+      summary: Get photo metadata
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Photo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+    delete:
+      summary: Soft-delete photo (tombstone)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Deleted
+  /photos/{id}/download:
+    get:
+      summary: Get signed download URL
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: size
+          schema:
+            type: string
+            enum: [thumb, medium, original]
+      responses:
+        "200":
+          description: Signed URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DownloadResponse"
+  /photos/{id}/metadata:
+    post:
+      summary: Patch photo metadata (tags, camera, etc.)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PhotoMetadataPatchRequest"
+      responses:
+        "200":
+          description: Updated photo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Photo"
+  /albums:
+    get:
+      summary: List albums
+      responses:
+        "200":
+          description: Albums
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlbumListResponse"
+    post:
+      summary: Create album
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlbumCreateRequest"
+      responses:
+        "200":
+          description: Album created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Album"
+  /albums/{id}:
+    put:
+      summary: Update album
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlbumUpdateRequest"
+      responses:
+        "200":
+          description: Album updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Album"
+  /albums/{id}/items:
+    post:
+      summary: Add photo to album
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AlbumItemRequest"
+      responses:
+        "204":
+          description: Added
+  /albums/{id}/items/{photoId}:
+    delete:
+      summary: Remove photo from album
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - in: path
+          name: photoId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Removed
+  /feed:
+    get:
+      summary: Delta feed
+      parameters:
+        - in: query
+          name: cursor
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Feed items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedResponse"
+  /share-links:
+    post:
+      summary: Create share link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShareLinkCreateRequest"
+      responses:
+        "200":
+          description: Share link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareLink"
+  /share-links/{id}:
+    delete:
+      summary: Revoke share link
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Revoked
+  /imports:
+    post:
+      summary: Start import job (Takeout baseline)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportCreateRequest"
+      responses:
+        "200":
+          description: Import started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportCreateResponse"
+  /imports/{id}:
+    get:
+      summary: Get import job status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Import status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportStatusResponse"
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required: [email, password]
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required: [accessToken, refreshToken, user]
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+      required: [refreshToken]
+    RefreshResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+      required: [accessToken]
+    DeviceRegisterRequest:
+      type: object
+      properties:
+        platform:
+          type: string
+          enum: [ios, android]
+        model:
+          type: string
+        appVersion:
+          type: string
+      required: [platform, model, appVersion]
+    DeviceRegisterResponse:
+      type: object
+      properties:
+        deviceId:
+          type: string
+          format: uuid
+      required: [deviceId]
+    ServerClaimRequest:
+      type: object
+      properties:
+        ownerEmail:
+          type: string
+          format: email
+        code:
+          type: string
+      required: [ownerEmail]
+    ServerClaimResponse:
+      type: object
+      properties:
+        serverId:
+          type: string
+          format: uuid
+      required: [serverId]
+    UploadSessionRequest:
+      type: object
+      properties:
+        hash:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        mimeType:
+          type: string
+        capturedAt:
+          type: string
+          format: date-time
+        width:
+          type: integer
+        height:
+          type: integer
+        locationLat:
+          type: number
+        locationLon:
+          type: number
+      required: [hash, sizeBytes, mimeType]
+    UploadSessionResponse:
+      type: object
+      properties:
+        uploadSessionId:
+          type: string
+          format: uuid
+        uploadUrl:
+          type: string
+          format: uri
+        chunkSize:
+          type: integer
+        alreadyExists:
+          type: boolean
+      required: [uploadSessionId, uploadUrl, chunkSize, alreadyExists]
+    UploadCompleteRequest:
+      type: object
+      properties:
+        storageKey:
+          type: string
+      required: [storageKey]
+    UploadCompleteResponse:
+      type: object
+      properties:
+        photoId:
+          type: string
+          format: uuid
+      required: [photoId]
+    PhotoMetadataPatchRequest:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+        cameraMake:
+          type: string
+        cameraModel:
+          type: string
+    PhotosPageResponse:
+      type: object
+      properties:
+        cursor:
+          type: string
+        hasMore:
+          type: boolean
+        photos:
+          type: array
+          items:
+            $ref: "#/components/schemas/Photo"
+      required: [photos, hasMore]
+    DownloadResponse:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+      required: [url]
+    AlbumCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+      required: [name]
+    AlbumUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        coverPhotoId:
+          type: string
+          format: uuid
+    AlbumItemRequest:
+      type: object
+      properties:
+        photoId:
+          type: string
+          format: uuid
+      required: [photoId]
+    AlbumListResponse:
+      type: object
+      properties:
+        albums:
+          type: array
+          items:
+            $ref: "#/components/schemas/Album"
+      required: [albums]
+    FeedResponse:
+      type: object
+      properties:
+        cursor:
+          type: string
+        hasMore:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/FeedItem"
+      required: [items, hasMore]
+    FeedItem:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [photo, album, tombstone]
+        updatedAt:
+          type: string
+          format: date-time
+        photo:
+          $ref: "#/components/schemas/Photo"
+        album:
+          $ref: "#/components/schemas/Album"
+        tombstone:
+          $ref: "#/components/schemas/Tombstone"
+      required: [type, updatedAt]
+    Tombstone:
+      type: object
+      properties:
+        entity:
+          type: string
+          enum: [photo, album]
+        id:
+          type: string
+          format: uuid
+      required: [entity, id]
+    ShareLinkCreateRequest:
+      type: object
+      properties:
+        photoId:
+          type: string
+          format: uuid
+        albumId:
+          type: string
+          format: uuid
+        expiresAt:
+          type: string
+          format: date-time
+    ImportCreateRequest:
+      type: object
+      properties:
+        source:
+          type: string
+          enum: [takeout]
+        hash:
+          type: string
+      required: [source, hash]
+    ImportCreateResponse:
+      type: object
+      properties:
+        importJobId:
+          type: string
+          format: uuid
+      required: [importJobId]
+    ImportStatusResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        processed:
+          type: integer
+        total:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+      required: [id, status, processed, total]
+    ShareLink:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        token:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+      required: [id, url, token]
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, createdAt]
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        platform:
+          type: string
+        model:
+          type: string
+        appVersion:
+          type: string
+        lastSeenAt:
+          type: string
+          format: date-time
+      required: [id, platform, model, appVersion, lastSeenAt]
+    Photo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        storageKey:
+          type: string
+        hash:
+          type: string
+        fileName:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        capturedAt:
+          type: string
+          format: date-time
+        uploadedAt:
+          type: string
+          format: date-time
+        width:
+          type: integer
+        height:
+          type: integer
+        mimeType:
+          type: string
+        locationLat:
+          type: number
+        locationLon:
+          type: number
+        cameraMake:
+          type: string
+        cameraModel:
+          type: string
+        isDeleted:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+        thumbnails:
+          type: object
+          additionalProperties:
+            type: string
+            format: uri
+      required: [id, userId, storageKey, hash, fileName, sizeBytes, uploadedAt, updatedAt]
+    Album:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        coverPhotoId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        isDeleted:
+          type: boolean
+      required: [id, userId, name, createdAt, updatedAt]

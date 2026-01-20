@@ -1,46 +1,40 @@
 # Step 3 - Data Model and Sync
 
 Core entities
-- User, Device, Photo, Album, AlbumItem, Tag, ShareLink.
+- User: Id (uuid), Email, PasswordHash, CreatedAt, DeletedAt.
+- Device: Id (uuid), UserId, Platform (ios|android), Model, AppVersion, CreatedAt, LastSeenAt.
+- Photo: Id (uuid), UserId, DeviceId, StorageKey, Hash (sha256), FileName, SizeBytes, CapturedAt, UploadedAt, Width, Height, MimeType, LocationLat, LocationLon, CameraMake, CameraModel, IsDeleted, DeletedAt, UpdatedAt.
+- Album: Id (uuid), UserId, Name, CoverPhotoId, CreatedAt, UpdatedAt, IsDeleted, DeletedAt.
+- AlbumItem: AlbumId, PhotoId, Position, AddedAt (PK AlbumId+PhotoId).
+- Tag/PhotoTag: Tag(Id, UserId, Label, CreatedAt), PhotoTag(PhotoId, TagId).
+- ShareLink: Id, UserId, AlbumId?, PhotoId?, Token, ExpiresAt, CreatedAt, RevokedAt.
+- UploadSession: Id (uuid), UserId, DeviceId, Hash, SizeBytes, ChunkSize, Status(pending|uploading|completed|failed), CreatedAt, CompletedAt, Error.
+- DeltaCursor: opaque string derived from UpdatedAt/tombstone checkpoint.
 
-Photo fields (example)
-- Id, UserId, StorageKey, Hash, FileName, SizeBytes.
-- CapturedAt, UploadedAt, Location, CameraMake, CameraModel.
-- Width, Height, DurationSeconds, MimeType.
-
-Album fields (example)
-- Id, UserId, Name, CreatedAt, UpdatedAt.
-
-Local storage
-- SQLite for metadata and sync state.
-- Disk cache for thumbnails and recently viewed originals.
+Local storage (SQLite + disk cache)
+- Tables: Photos (fields mirroring Photo + CursorUpdatedAt, ThumbPath, MediumPath), Albums, AlbumItems, Tags, PhotoTags, ShareLinks, PendingUploads (UploadSessionId, Hash, State, RetryAt), SyncState (singleton row with Cursor).
+- Disk cache: thumbnails + medium images keyed by PhotoId and size; originals on-demand.
 
 Sync strategy
-- Local queue for uploads and edits.
-- Delta API for server changes since cursor.
-- Background workers to sync when network is available.
-- Exponential backoff for retries.
+- Bootstrap: GET /photos?limit=… returns first page for gallery plus cursor.
+- Deltas: GET /feed?cursor=… returns items [{type: photo|album|tombstone, data, updatedAt}], apply with last-write-wins on UpdatedAt and propagate tombstones.
+- Uploads: hash-first dedupe via upload session; if alreadyExists=true, skip chunk upload and just attach metadata/device.
+- Background workers: resume queued uploads/edits when network is available; exponential backoff on failures.
 
 Conflict handling
-- Last-write-wins for metadata edits.
-- Album membership is additive unless explicitly removed.
-- Deletions use tombstones to propagate.
+- Last-write-wins on metadata using UpdatedAt; album membership additive unless explicitly removed.
+- Deletes are soft (IsDeleted + tombstone in feed) and synced across devices.
 
 Offline behavior
-- Read cached photos and albums.
-- Queue edits and uploads for later.
+- Read from SQLite/cache; queue edits/uploads; replay when online.
 
 Import (Google Photos)
-- Support import via Google Takeout (zip) as the baseline flow.
-- Optional direct import using Google Photos API if access and quotas allow.
-- Map metadata to Photo fields, preserve CapturedAt and Location where possible.
-- Recreate albums from Takeout metadata when available.
-- Dedupe by content hash to avoid reuploading existing items.
-- Track import jobs and progress per user/device.
+- Baseline: Google Takeout zip; optional direct Photos API if quotas allow.
+- Map EXIF/metadata to Photo fields, preserve CapturedAt/Location; recreate albums when metadata present.
+- Dedupe by content hash; track import job progress per user/device.
 
 Security
-- Encrypt sensitive local storage.
-- Use signed URLs for uploads and downloads.
+- Encrypt sensitive local storage; use signed URLs for uploads/downloads.
 
 Deliverables
 - Data model document.

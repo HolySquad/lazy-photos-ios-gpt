@@ -34,6 +34,7 @@ public partial class PhotoLibraryService
 				continue;
 
 			var hash = await ComputeHashAsync(asset, ct);
+			var ratio = imageSizeCache.TryGetValue(asset.LocalIdentifier, out var cachedRatio) ? cachedRatio : 1.0;
 
 			items.Add(new PhotoItem
 			{
@@ -43,11 +44,28 @@ public partial class PhotoLibraryService
 				FolderName = "Camera Roll",
 				Thumbnail = thumbnail,
 				FullImage = null,
-				IsSynced = false
+				IsSynced = false,
+				AspectRatio = ratio
 			});
 		}
 
 		return items;
+	}
+
+	private async partial IAsyncEnumerable<PhotoItem> StreamRecentPhotosAsyncCore(int maxCount, CancellationToken ct)
+	{
+		var items = await GetRecentPhotosAsyncCore(maxCount, ct);
+		foreach (var item in items)
+		{
+			ct.ThrowIfCancellationRequested();
+			yield return item;
+		}
+	}
+
+	private partial Task<string?> ComputeHashAsyncCore(PhotoItem photo, CancellationToken ct)
+	{
+		// Hash computation skipped on iOS for now to avoid extra I/O on first pass.
+		return Task.FromResult<string?>(photo?.Hash);
 	}
 
 	private partial Task<ImageSource?> GetFullImageAsyncCore(PhotoItem photo, CancellationToken ct)
@@ -61,6 +79,8 @@ public partial class PhotoLibraryService
 
 		return CreateFullImageSourceAsync(asset, ct);
 	}
+
+	private static readonly Dictionary<string, double> imageSizeCache = new();
 
 	private static Task<ImageSource?> CreateImageSourceAsync(PHAsset asset, CGSize size, CancellationToken ct)
 	{
@@ -91,6 +111,9 @@ public partial class PhotoLibraryService
 					tcs.TrySetResult(null);
 					return;
 				}
+
+				if (image.Size.Height > 0)
+					imageSizeCache[asset.LocalIdentifier] = Math.Max(0.1, image.Size.Width / image.Size.Height);
 
 				tcs.TrySetResult(ImageSource.FromStream(() => data.AsStream()));
 			});
@@ -126,11 +149,11 @@ public partial class PhotoLibraryService
 		return tcs.Task;
 	}
 
-	private static Task<string?> ComputeHashAsync(PHAsset asset, CancellationToken ct)
+private static Task<string?> ComputeHashAsync(PHAsset asset, CancellationToken ct)
+{
+	var tcs = new TaskCompletionSource<string?>();
+	var requestOptions = new PHImageRequestOptions
 	{
-		var tcs = new TaskCompletionSource<string?>();
-		var requestOptions = new PHImageRequestOptions
-		{
 			DeliveryMode = PHImageRequestOptionsDeliveryMode.HighQualityFormat,
 			NetworkAccessAllowed = true
 		};
@@ -155,9 +178,15 @@ public partial class PhotoLibraryService
 				tcs.TrySetResult(sb.ToString());
 			});
 
-		ct.Register(() => tcs.TrySetCanceled(ct));
-		return tcs.Task;
-	}
+	ct.Register(() => tcs.TrySetCanceled(ct));
+	return tcs.Task;
+}
+
+private partial Task<ImageSource?> BuildThumbnailAsyncCore(PhotoItem photo, bool lowQuality, CancellationToken ct)
+{
+	// iOS thumbnails are already sized down when loaded; just return existing.
+	return Task.FromResult(photo.Thumbnail);
+}
 }
 
 internal static class NSDateExtensions

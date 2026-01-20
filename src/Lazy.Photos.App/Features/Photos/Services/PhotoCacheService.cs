@@ -1,4 +1,5 @@
 using Microsoft.Data.Sqlite;
+using System.IO;
 using Lazy.Photos.App.Features.Photos.Models;
 
 namespace Lazy.Photos.App.Features.Photos.Services;
@@ -122,15 +123,28 @@ public sealed class PhotoCacheService : IPhotoCacheService, IPhotoCacheMaintenan
 		if (string.IsNullOrWhiteSpace(uri))
 			return null;
 
-		return Uri.TryCreate(uri, UriKind.Absolute, out var parsed)
-			? ImageSource.FromUri(parsed)
-			: null;
+		if (Uri.TryCreate(uri, UriKind.Absolute, out var parsed))
+		{
+			if (parsed.IsFile && File.Exists(parsed.LocalPath))
+				return ImageSource.FromFile(parsed.LocalPath);
+			return ImageSource.FromUri(parsed);
+		}
+
+		if (File.Exists(uri))
+			return ImageSource.FromFile(uri);
+
+		return null;
 	}
 
 	private static string? ToUriString(ImageSource? source)
 	{
-		if (source is UriImageSource uriSource)
-			return uriSource.Uri?.ToString();
+		switch (source)
+		{
+			case UriImageSource uriSource:
+				return uriSource.Uri?.ToString();
+			case FileImageSource fileSource when !string.IsNullOrWhiteSpace(fileSource.File):
+				return Path.GetFullPath(fileSource.File);
+		}
 		return null;
 	}
 

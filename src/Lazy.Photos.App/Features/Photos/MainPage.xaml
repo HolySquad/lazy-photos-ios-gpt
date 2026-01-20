@@ -16,15 +16,18 @@
         <RefreshView Grid.Row="1"
                      IsRefreshing="{Binding IsBusy}"
                      Command="{Binding RefreshCommand}">
-            <CollectionView ItemsSource="{Binding PhotoSections}"
+            <CollectionView x:Name="PhotosCollection"
+                            ItemsSource="{Binding PhotoSections}"
                             IsGrouped="True"
+                            ItemSizingStrategy="MeasureAllItems"
+                            ItemsUpdatingScrollMode="KeepScrollOffset"
                             SelectionMode="None"
                             Margin="12,8">
                 <CollectionView.ItemsLayout>
                     <GridItemsLayout Orientation="Vertical"
                                      Span="{Binding Columns}"
-                                     HorizontalItemSpacing="2"
-                                     VerticalItemSpacing="2" />
+                                     HorizontalItemSpacing="4"
+                                     VerticalItemSpacing="4" />
                 </CollectionView.ItemsLayout>
                 <CollectionView.GroupHeaderTemplate>
                     <DataTemplate>
@@ -40,8 +43,14 @@
                         <Grid>
                             <Image Source="{Binding Thumbnail}"
                                    Aspect="AspectFill"
-                                   HeightRequest="{Binding BindingContext.CellSize, Source={RelativeSource AncestorType={x:Type local:MainPage}}}"
-                                   WidthRequest="{Binding BindingContext.CellSize, Source={RelativeSource AncestorType={x:Type local:MainPage}}}" />
+                                   WidthRequest="{Binding BindingContext.CellSize, Source={RelativeSource AncestorType={x:Type local:MainPage}}}">
+                                <Image.HeightRequest>
+                                    <MultiBinding Converter="{StaticResource AspectHeightConverter}">
+                                        <Binding Path="AspectRatio" />
+                                        <Binding Path="BindingContext.CellSize" Source="{RelativeSource AncestorType={x:Type local:MainPage}}" />
+                                    </MultiBinding>
+                                </Image.HeightRequest>
+                            </Image>
 
                             <Grid HorizontalOptions="End"
                                   VerticalOptions="Start"
@@ -81,6 +90,19 @@
                 </CollectionView.EmptyView>
             </CollectionView>
         </RefreshView>
+
+        <Grid Grid.Row="1"
+              BackgroundColor="#80000000"
+              IsVisible="{Binding IsInitializing}"
+              InputTransparent="False">
+            <ActivityIndicator IsRunning="True"
+                               IsVisible="True"
+                               Color="White"
+                               WidthRequest="48"
+                               HeightRequest="48"
+                               VerticalOptions="Center"
+                               HorizontalOptions="Center" />
+        </Grid>
     </Grid>
 
 </ContentPage>

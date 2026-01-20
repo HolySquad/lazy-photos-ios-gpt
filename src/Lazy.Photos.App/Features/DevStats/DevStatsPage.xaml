@@ -10,8 +10,11 @@
                     Command="{Binding RefreshCommand}" />
             <Button Text="Clear cache"
                     Command="{Binding ClearCommand}" />
+            <Button Text="Index device photos into cache"
+                    Command="{Binding IndexCommand}"
+                    IsEnabled="{Binding IsIndexing, Converter={StaticResource InverseBooleanConverter}, FallbackValue='True'}" />
 
-            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="12">
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="12">
                 <Label Text="Cache photos:" Grid.Row="0" Grid.Column="0" />
                 <Label Text="{Binding CachedCount}" Grid.Row="0" Grid.Column="1" />
 
@@ -24,8 +27,11 @@
                 <Label Text="DB size:" Grid.Row="3" Grid.Column="0" />
                 <Label Text="{Binding DatabaseSize}" Grid.Row="3" Grid.Column="1" />
 
-                <Label Text="Status:" Grid.Row="4" Grid.Column="0" />
-                <Label Text="{Binding Status}" Grid.Row="4" Grid.Column="1" />
+                <Label Text="Thumb cache size:" Grid.Row="4" Grid.Column="0" />
+                <Label Text="{Binding ThumbnailCacheSize}" Grid.Row="4" Grid.Column="1" />
+
+                <Label Text="Status:" Grid.Row="5" Grid.Column="0" />
+                <Label Text="{Binding Status}" Grid.Row="5" Grid.Column="1" />
             </Grid>
         </VerticalStackLayout>
     </ScrollView>

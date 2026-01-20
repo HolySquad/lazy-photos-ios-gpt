@@ -21,8 +21,22 @@ public partial class MainPage : ContentPage
 	{
 		base.OnAppearing();
 
+		PhotosCollection.Scrolled += OnPhotosScrolled;
+
 		if (BindingContext is MainPageViewModel vm)
 			await vm.EnsureLoadedAsync();
+	}
+
+	protected override void OnDisappearing()
+	{
+		base.OnDisappearing();
+		PhotosCollection.Scrolled -= OnPhotosScrolled;
+	}
+
+	private void OnPhotosScrolled(object? sender, ItemsViewScrolledEventArgs e)
+	{
+		if (BindingContext is MainPageViewModel vm)
+			vm.NotifyScrolled(e.FirstVisibleItemIndex, e.LastVisibleItemIndex);
 	}
 
 	protected override void OnSizeAllocated(double width, double height)
@@ -33,14 +47,14 @@ public partial class MainPage : ContentPage
 
 		var columns = width switch
 		{
-			<= 360 => 3,
-			<= 600 => 4,
-			<= 900 => 5,
-			_ => 6
+			<= 400 => 2,
+			<= 700 => 3,
+			<= 1100 => 4,
+			_ => 5
 		};
 
 		const double horizontalPadding = 16;
-		const double spacing = 2;
+		const double spacing = 4;
 		var totalSpacing = (columns - 1) * spacing;
 		var available = Math.Max(0, width - horizontalPadding - totalSpacing);
 		var cellSize = Math.Floor(available / columns);

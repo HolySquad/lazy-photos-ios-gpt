@@ -3,10 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Lazy.Photos.App.Features.Photos.PhotoViewerPage"
              BackgroundColor="Black"
-             Title="Photo">
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False">
 
     <Grid RowDefinitions="Auto,*,Auto">
-        <Grid Padding="12" ColumnDefinitions="Auto,*,Auto,Auto">
+        <Grid Padding="12" ColumnDefinitions="Auto,*,Auto,Auto"
+              IsVisible="{Binding IsChromeVisible}">
             <Button Text="&lt;"
                     TextColor="White"
                     BackgroundColor="Transparent"
@@ -26,15 +28,24 @@
                     BackgroundColor="Transparent" />
         </Grid>
 
-        <Image Grid.Row="1"
-               Source="{Binding DisplayImage}"
-               Aspect="AspectFit"
-               BackgroundColor="Black" />
+        <Grid Grid.Row="1">
+            <Image x:Name="PhotoImage"
+                   Source="{Binding DisplayImage}"
+                   Aspect="AspectFit"
+                   BackgroundColor="Black">
+                <Image.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ToggleChromeCommand}" />
+                    <TapGestureRecognizer NumberOfTapsRequired="2" Tapped="OnDoubleTap" />
+                    <PinchGestureRecognizer PinchUpdated="OnPinchUpdated" />
+                </Image.GestureRecognizers>
+            </Image>
+        </Grid>
 
         <Grid Grid.Row="2"
               Padding="8,12"
               ColumnDefinitions="*,*,*,*"
-              BackgroundColor="#000000">
+              BackgroundColor="#000000"
+              IsVisible="{Binding IsChromeVisible}">
             <Button Text="Share"
                     TextColor="White"
                     BackgroundColor="Transparent" />

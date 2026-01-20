@@ -16,6 +16,9 @@ public partial class PhotoViewerViewModel : ObservableObject
 	[ObservableProperty]
 	private ImageSource? displayImage;
 
+	[ObservableProperty]
+	private bool isChromeVisible = true;
+
 	public PhotoViewerViewModel(IPhotoLibraryService photoLibraryService)
 	{
 		_photoLibraryService = photoLibraryService;
@@ -61,5 +64,11 @@ public partial class PhotoViewerViewModel : ObservableObject
 	private Task GoBackAsync()
 	{
 		return Shell.Current.GoToAsync("..");
+	}
+
+	[RelayCommand]
+	private void ToggleChrome()
+	{
+		IsChromeVisible = !IsChromeVisible;
 	}
 }

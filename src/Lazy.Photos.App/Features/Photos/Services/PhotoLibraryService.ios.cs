@@ -108,7 +108,7 @@ public partial class PhotoLibraryService
 			NetworkAccessAllowed = true
 		};
 
-		PHImageManager.DefaultManager.RequestImageData(
+		PHImageManager.DefaultManager.RequestImageDataAndOrientation(
 			asset,
 			requestOptions,
 			(data, _, _, _) =>
@@ -135,7 +135,7 @@ public partial class PhotoLibraryService
 			NetworkAccessAllowed = true
 		};
 
-		PHImageManager.DefaultManager.RequestImageData(
+		PHImageManager.DefaultManager.RequestImageDataAndOrientation(
 			asset,
 			requestOptions,
 			(data, _, _, _) =>

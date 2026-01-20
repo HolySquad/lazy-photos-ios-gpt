@@ -13,7 +13,7 @@ public partial class MainPage : ContentPage
 
 	public MainPage()
 		: this(Microsoft.Maui.IPlatformApplication.Current?.Services?.GetService<MainPageViewModel>()
-			?? new MainPageViewModel(new Services.PhotoLibraryService(), new Services.PhotoNavigationService(), new PhotoSyncService(new PhotosApiClientStub())))
+			?? new MainPageViewModel(new Services.PhotoLibraryService(), new Services.PhotoNavigationService(), new PhotoSyncService(new PhotosApiClientStub()), new Services.PhotoCacheService(Path.Combine(FileSystem.AppDataDirectory, "photos-cache.db3"))))
 	{
 	}
 

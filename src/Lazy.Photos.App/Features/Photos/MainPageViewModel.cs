@@ -17,6 +17,7 @@ public partial class MainPageViewModel : ObservableObject
 	private readonly IPhotoLibraryService _photoLibraryService;
 	private readonly IPhotoNavigationService _photoNavigationService;
 	private readonly IPhotoSyncService _photoSyncService;
+	private readonly IPhotoCacheService _photoCacheService;
 	private CancellationTokenSource? _loadCts;
 	private bool _loadedOnce;
 
@@ -44,11 +45,13 @@ public partial class MainPageViewModel : ObservableObject
 	public MainPageViewModel(
 		IPhotoLibraryService photoLibraryService,
 		IPhotoNavigationService photoNavigationService,
-		IPhotoSyncService photoSyncService)
+		IPhotoSyncService photoSyncService,
+		IPhotoCacheService photoCacheService)
 	{
 		_photoLibraryService = photoLibraryService;
 		_photoNavigationService = photoNavigationService;
 		_photoSyncService = photoSyncService;
+		_photoCacheService = photoCacheService;
 	}
 
 	partial void OnErrorMessageChanged(string? value)
@@ -88,15 +91,16 @@ public partial class MainPageViewModel : ObservableObject
 
 		try
 		{
+			var cached = await _photoCacheService.GetCachedPhotosAsync(_loadCts.Token);
+			if (cached.Count > 0)
+				RenderPhotos(cached);
+
 			var remoteItems = await TryLoadRemoteAsync(_loadCts.Token);
 			var deviceItems = await LoadDevicePhotosAsync(_loadCts.Token);
 			var items = MergePhotos(remoteItems, deviceItems);
 
-			Photos.Clear();
-			foreach (var item in items)
-				Photos.Add(item);
-
-			RebuildSections();
+			await _photoCacheService.SavePhotosAsync(remoteItems, _loadCts.Token);
+			RenderPhotos(items);
 		}
 		catch (OperationCanceledException)
 		{
@@ -219,5 +223,14 @@ public partial class MainPageViewModel : ObservableObject
 			return $"id:{item.Id}";
 
 		return $"fallback:{item.DisplayName}:{item.TakenAt?.UtcDateTime:o}";
+	}
+
+	private void RenderPhotos(IReadOnlyList<PhotoItem> items)
+	{
+		Photos.Clear();
+		foreach (var item in items)
+			Photos.Add(item);
+
+		RebuildSections();
 	}
 }

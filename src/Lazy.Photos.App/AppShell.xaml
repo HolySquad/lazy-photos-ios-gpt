@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:photos="clr-namespace:Lazy.Photos.App.Features.Photos"
     xmlns:search="clr-namespace:Lazy.Photos.App.Features.Search"
+    xmlns:dev="clr-namespace:Lazy.Photos.App.Features.DevStats"
     Title="Lazy Photos">
 
     <Shell.TitleView>
@@ -41,6 +42,10 @@
             Title="Search"
             ContentTemplate="{DataTemplate search:SearchPage}"
             Route="SearchPage" />
+        <ShellContent
+            Title="DevStats"
+            ContentTemplate="{DataTemplate dev:DevStatsPage}"
+            Route="DevStatsPage" />
     </TabBar>
 
 </Shell>

@@ -23,20 +23,26 @@ public partial class MainPageViewModel : ObservableObject
 	private readonly object _indexLock = new();
 	private CancellationTokenSource? _loadCts;
 	private CancellationTokenSource? _scrollQuietCts;
-	private CancellationTokenSource? _sectionDebounceCts;
 	private CancellationTokenSource? _persistDebounceCts;
 	private CancellationTokenSource? _thumbnailFillCts;
 	private readonly SemaphoreSlim _thumbnailSemaphore = new(1);
+	private readonly SemaphoreSlim _devicePageSemaphore = new(1);
+	private readonly SemaphoreSlim _pageLoadSemaphore = new(1);
 	private readonly Dictionary<string, PhotoItem> _photoIndex = new(StringComparer.OrdinalIgnoreCase);
 	private readonly List<PhotoItem> _orderedPhotos = new();
+	private IAsyncEnumerator<PhotoItem>? _deviceEnumerator;
+	private bool _deviceEnumerationComplete;
+	private bool _deviceAccessGranted;
+	private int _displayCount;
+	private string? _remoteCursor;
+	private bool _remoteHasMore = true;
 	private bool _loadedOnce;
 	private volatile bool _isScrolling;
 	private volatile int _visibleStartIndex;
 	private volatile int _visibleEndIndex;
 	private readonly ConcurrentDictionary<string, byte> _lowQualityThumbs = new(StringComparer.OrdinalIgnoreCase);
-	private const int DevicePageSize = 200;
-	private const int RemoteLoadLimit = 120;
-	private const int SectionDebounceMs = 350;
+	private const int PageSize = 30;
+	private const int ScrollLoadThreshold = 8;
 	private const int PersistDebounceMs = 750;
 
 	[ObservableProperty]
@@ -83,6 +89,9 @@ public partial class MainPageViewModel : ObservableObject
 		_scrollQuietCts?.Cancel();
 		_scrollQuietCts = new CancellationTokenSource();
 		_ = ResetScrollQuietAsync(_scrollQuietCts.Token);
+
+		if (_displayCount > 0 && lastVisibleIndex >= Math.Max(0, _displayCount - ScrollLoadThreshold))
+			_ = LoadNextPageAsync();
 	}
 
 	private async Task ResetScrollQuietAsync(CancellationToken ct)
@@ -135,6 +144,8 @@ public partial class MainPageViewModel : ObservableObject
 		_loadCts?.Cancel();
 		_loadCts = new CancellationTokenSource();
 
+		await ResetPagingStateAsync();
+
 		try
 		{
 			var cached = await _photoCacheService.GetCachedPhotosAsync(_loadCts.Token);
@@ -142,22 +153,31 @@ public partial class MainPageViewModel : ObservableObject
 			await MainThread.InvokeOnMainThreadAsync(() => InitializeFromCache(cached));
 			_ = StartThumbnailFillAsync(Photos, _loadCts.Token);
 
-			var remoteTask = TryLoadRemoteAsync(_loadCts.Token);
-			var deviceTask = LoadDevicePhotosAsync(_loadCts.Token);
+			_deviceAccessGranted = await EnsurePhotosPermissionAsync();
+			if (!_deviceAccessGranted)
+			{
+				ErrorMessage = "Showing cloud photos. Photo permission is required to show device photos.";
+				_deviceEnumerationComplete = true;
+			}
+
+			var remoteTask = TryLoadRemotePageAsync(_remoteCursor, _loadCts.Token);
+			var deviceTask = FetchDevicePageAsync(PageSize, _loadCts.Token);
 			await Task.WhenAll(remoteTask, deviceTask);
 
-			var remoteItems = remoteTask.Result;
-			var deviceItems = deviceTask.Result;
-			var merged = MergeAndSort(remoteItems, deviceItems);
+			var remotePage = remoteTask.Result;
+			UpdateRemotePagingState(remotePage);
+			var merged = MergeAndSort(remotePage.Items, deviceTask.Result);
+			EnsureDisplayCountInitialized(merged.Count);
+			var displayItems = BuildDisplaySnapshot();
 
 			await MainThread.InvokeOnMainThreadAsync(() =>
 			{
-				ApplySnapshot(merged);
+				ApplySnapshot(displayItems);
 				RebuildSectionsFromOrdered();
 			});
 
 			QueuePersistCache(merged, _loadCts.Token);
-			_ = StartThumbnailFillAsync(merged, _loadCts.Token);
+			_ = StartThumbnailFillAsync(Photos, _loadCts.Token);
 			IsInitializing = false;
 		}
 		catch (OperationCanceledException)
@@ -198,6 +218,34 @@ public partial class MainPageViewModel : ObservableObject
 		}
 	}
 
+	private void AppendSectionsFromRange(int startIndex, int endIndexExclusive)
+	{
+		if (Photos.Count == 0 || startIndex >= endIndexExclusive)
+			return;
+
+		if (startIndex <= 0 || PhotoSections.Count == 0)
+		{
+			RebuildSectionsFromOrdered();
+			return;
+		}
+
+		var currentDate = GetLocalDate(Photos[startIndex - 1].TakenAt);
+		var currentSection = PhotoSections[^1];
+
+		for (var i = startIndex; i < endIndexExclusive; i++)
+		{
+			var photoDate = GetLocalDate(Photos[i].TakenAt);
+			if (photoDate != currentDate)
+			{
+				currentDate = photoDate;
+				currentSection = new PhotoSection(FormatSectionTitle(currentDate), Array.Empty<PhotoItem>());
+				PhotoSections.Add(currentSection);
+			}
+
+			currentSection.Add(Photos[i]);
+		}
+	}
+
 	[RelayCommand]
 	private async Task OpenPhotoAsync(PhotoItem? photo)
 	{
@@ -231,11 +279,11 @@ public partial class MainPageViewModel : ObservableObject
 		return status == PermissionStatus.Granted;
 	}
 
-	private async Task<IReadOnlyList<PhotoItem>> TryLoadRemoteAsync(CancellationToken ct)
+	private async Task<PhotoPage> TryLoadRemotePageAsync(string? cursor, CancellationToken ct)
 	{
 		try
 		{
-			return await _photoSyncService.GetRecentAsync(RemoteLoadLimit, ct);
+			return await _photoSyncService.GetPageAsync(cursor, PageSize, ct);
 		}
 		catch (OperationCanceledException)
 		{
@@ -243,58 +291,61 @@ public partial class MainPageViewModel : ObservableObject
 		}
 		catch
 		{
-			return Array.Empty<PhotoItem>();
+			return new PhotoPage(Array.Empty<PhotoItem>(), cursor, false);
 		}
 	}
 
-	private async Task<IReadOnlyList<PhotoItem>> LoadDevicePhotosAsync(CancellationToken ct)
+	private async Task<List<PhotoItem>> FetchDevicePageAsync(int pageSize, CancellationToken ct)
 	{
-		var permissionGranted = await EnsurePhotosPermissionAsync();
-		if (!permissionGranted)
-		{
-			ErrorMessage = "Showing cloud photos. Photo permission is required to show device photos.";
-			return Array.Empty<PhotoItem>();
-		}
+		if (pageSize <= 0 || _deviceEnumerationComplete || !_deviceAccessGranted)
+			return new List<PhotoItem>();
 
-		var collected = new List<PhotoItem>();
-
-		await Task.Run(async () =>
+		await _devicePageSemaphore.WaitAsync(ct).ConfigureAwait(false);
+		try
 		{
-			var page = new List<PhotoItem>(DevicePageSize);
-			await foreach (var item in _photoLibraryService.StreamRecentPhotosAsync(int.MaxValue, ct).WithCancellation(ct).ConfigureAwait(false))
+			if (_deviceEnumerationComplete || !_deviceAccessGranted)
+				return new List<PhotoItem>();
+
+			_deviceEnumerator ??= _photoLibraryService.StreamRecentPhotosAsync(int.MaxValue, ct).GetAsyncEnumerator(ct);
+
+			var page = new List<PhotoItem>(pageSize);
+			while (page.Count < pageSize && !ct.IsCancellationRequested)
 			{
-				collected.Add(item);
-				page.Add(item);
+				if (_deviceEnumerator == null)
+					break;
 
-				if (page.Count >= DevicePageSize)
+				if (!await _deviceEnumerator.MoveNextAsync().ConfigureAwait(false))
 				{
-					var snapshot = page;
-					page = new List<PhotoItem>(DevicePageSize);
-					await ApplyDevicePageAsync(snapshot, ct).ConfigureAwait(false);
+					_deviceEnumerationComplete = true;
+					break;
 				}
+
+				page.Add(_deviceEnumerator.Current);
 			}
 
-			if (page.Count > 0)
-				await ApplyDevicePageAsync(page, ct).ConfigureAwait(false);
-		}, ct).ConfigureAwait(false);
-
-		return collected;
+			return page;
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
+		catch
+		{
+			_deviceEnumerationComplete = true;
+			return new List<PhotoItem>();
+		}
+		finally
+		{
+			_devicePageSemaphore.Release();
+		}
 	}
 
-	private async Task ApplyDevicePageAsync(IReadOnlyList<PhotoItem> page, CancellationToken ct)
+	private void UpdateRemotePagingState(PhotoPage page)
 	{
-		if (page.Count == 0 || ct.IsCancellationRequested)
-			return;
-
-		await MainThread.InvokeOnMainThreadAsync(() =>
-		{
-			if (ct.IsCancellationRequested)
-				return;
-
-			var added = AppendDevicePage(page);
-			if (added > 0)
-				QueueSectionRebuild();
-		});
+		_remoteCursor = page.Cursor;
+		_remoteHasMore = page.HasMore;
+		if (page.Items.Count == 0 && !page.HasMore)
+			_remoteHasMore = false;
 	}
 
 	private Task StartHashFillAsync(IEnumerable<PhotoItem> photosToHash, CancellationToken ct)
@@ -351,7 +402,7 @@ public partial class MainPageViewModel : ObservableObject
 
 			if (missing.Count == 0)
 			{
-				QueuePersistCache(allItems, linkedCt);
+				QueuePersistCache(BuildOrderedSnapshot(), linkedCt);
 				return;
 			}
 
@@ -365,7 +416,7 @@ public partial class MainPageViewModel : ObservableObject
 			await ProcessThumbnailBatchAsync(firstScreen, linkedCt).ConfigureAwait(false);
 			await Task.Delay(50, linkedCt).ConfigureAwait(false);
 			await ProcessThumbnailBatchAsync(remaining, linkedCt).ConfigureAwait(false);
-			QueuePersistCache(allItems, linkedCt);
+			QueuePersistCache(BuildOrderedSnapshot(), linkedCt);
 		}, linkedCt);
 	}
 
@@ -544,34 +595,10 @@ public partial class MainPageViewModel : ObservableObject
 			_orderedPhotos.AddRange(ordered);
 		}
 
-		Photos.Clear();
-		for (var i = 0; i < ordered.Count; i++)
-			Photos.Add(ordered[i]);
+		_displayCount = Math.Min(PageSize, ordered.Count);
+		ApplySnapshot(BuildDisplaySnapshot());
 
 		RebuildSectionsFromOrdered();
-	}
-
-	private int AppendDevicePage(IReadOnlyList<PhotoItem> page)
-	{
-		var addedItems = new List<PhotoItem>();
-		lock (_indexLock)
-		{
-			foreach (var item in page)
-			{
-				var key = EnsureKey(item);
-				if (_photoIndex.ContainsKey(key))
-					continue;
-
-				_photoIndex[key] = item;
-				_orderedPhotos.Add(item);
-				addedItems.Add(item);
-			}
-		}
-
-		for (var i = 0; i < addedItems.Count; i++)
-			Photos.Add(addedItems[i]);
-
-		return addedItems.Count;
 	}
 
 	private IReadOnlyList<PhotoItem> MergeAndSort(params IEnumerable<PhotoItem>[] newItemSets)
@@ -611,6 +638,104 @@ public partial class MainPageViewModel : ObservableObject
 		}
 
 		return mergedSnapshot;
+	}
+
+	private void EnsureDisplayCountInitialized(int totalCount)
+	{
+		if (_displayCount == 0 && totalCount > 0)
+			_displayCount = Math.Min(PageSize, totalCount);
+	}
+
+	private List<PhotoItem> BuildDisplaySnapshot()
+	{
+		lock (_indexLock)
+		{
+			var count = Math.Min(_displayCount, _orderedPhotos.Count);
+			var displayItems = new List<PhotoItem>(count);
+			for (var i = 0; i < count; i++)
+				displayItems.Add(_orderedPhotos[i]);
+			return displayItems;
+		}
+	}
+
+	private List<PhotoItem> BuildOrderedSnapshot()
+	{
+		lock (_indexLock)
+			return _orderedPhotos.ToList();
+	}
+
+	private int GetOrderedCount()
+	{
+		lock (_indexLock)
+			return _orderedPhotos.Count;
+	}
+
+	private async Task LoadNextPageAsync()
+	{
+		if (IsBusy || _loadCts == null)
+			return;
+
+		if (!await _pageLoadSemaphore.WaitAsync(0).ConfigureAwait(false))
+			return;
+
+		try
+		{
+			var ct = _loadCts.Token;
+			if (ct.IsCancellationRequested)
+				return;
+
+			var targetCount = _displayCount + PageSize;
+			IReadOnlyList<PhotoItem>? merged = null;
+
+			if (targetCount > GetOrderedCount() && _remoteHasMore)
+			{
+				var remotePage = await TryLoadRemotePageAsync(_remoteCursor, ct).ConfigureAwait(false);
+				UpdateRemotePagingState(remotePage);
+				if (remotePage.Items.Count > 0)
+				{
+					merged = MergeAndSort(remotePage.Items);
+					QueuePersistCache(merged, ct);
+				}
+			}
+
+			if (targetCount > GetOrderedCount() && !_deviceEnumerationComplete)
+			{
+				var devicePage = await FetchDevicePageAsync(PageSize, ct).ConfigureAwait(false);
+				if (devicePage.Count > 0)
+				{
+					merged = MergeAndSort(devicePage);
+					QueuePersistCache(merged, ct);
+				}
+			}
+
+			var totalCount = GetOrderedCount();
+			var nextCount = Math.Min(targetCount, totalCount);
+			if (nextCount <= _displayCount)
+				return;
+
+			var previousCount = _displayCount;
+			_displayCount = nextCount;
+			var displayItems = BuildDisplaySnapshot();
+
+			await MainThread.InvokeOnMainThreadAsync(() =>
+			{
+				ApplySnapshot(displayItems);
+				if (previousCount <= 0 || PhotoSections.Count == 0)
+					RebuildSectionsFromOrdered();
+				else
+					AppendSectionsFromRange(previousCount, displayItems.Count);
+			});
+
+			_ = StartThumbnailFillAsync(Photos, ct);
+		}
+		catch (OperationCanceledException)
+		{
+			// Ignore cancellation.
+		}
+		finally
+		{
+			_pageLoadSemaphore.Release();
+		}
 	}
 
 	private string EnsureKey(PhotoItem item)
@@ -721,28 +846,29 @@ public partial class MainPageViewModel : ObservableObject
 		};
 	}
 
-	private void QueueSectionRebuild()
+	private async Task ResetPagingStateAsync()
 	{
-		_sectionDebounceCts?.Cancel();
-		var debounceCts = new CancellationTokenSource();
-		_sectionDebounceCts = debounceCts;
+		_displayCount = 0;
+		_deviceEnumerationComplete = false;
+		_deviceAccessGranted = false;
+		_remoteCursor = null;
+		_remoteHasMore = true;
 
-		_ = Task.Run(async () =>
+		if (_deviceEnumerator != null)
 		{
 			try
 			{
-				await Task.Delay(SectionDebounceMs, debounceCts.Token).ConfigureAwait(false);
-				await MainThread.InvokeOnMainThreadAsync(() =>
-				{
-					if (!debounceCts.IsCancellationRequested)
-						RebuildSectionsFromOrdered();
-				});
+				await _deviceEnumerator.DisposeAsync().ConfigureAwait(false);
 			}
-			catch (OperationCanceledException)
+			catch
 			{
-				// Debounced.
+				// Best-effort cleanup.
 			}
-		}, CancellationToken.None);
+			finally
+			{
+				_deviceEnumerator = null;
+			}
+		}
 	}
 
 	private void QueuePersistCache(IReadOnlyList<PhotoItem> items, CancellationToken ct)

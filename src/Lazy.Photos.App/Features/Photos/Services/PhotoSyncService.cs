@@ -16,15 +16,21 @@ public sealed class PhotoSyncService : IPhotoSyncService
 
 	public async Task<IReadOnlyList<PhotoItem>> GetRecentAsync(int maxCount, CancellationToken ct)
 	{
-		var response = await _apiClient.GetPhotosAsync(cursor: null, limit: maxCount, ct);
+		var page = await GetPageAsync(cursor: null, maxCount, ct);
+		return page.Items;
+	}
+
+	public async Task<PhotoPage> GetPageAsync(string? cursor, int limit, CancellationToken ct)
+	{
+		var response = await _apiClient.GetPhotosAsync(cursor, limit, ct);
 		if (response.Photos.Count == 0)
-			return Array.Empty<PhotoItem>();
+			return new PhotoPage(Array.Empty<PhotoItem>(), response.Cursor, response.HasMore);
 
 		var items = new List<PhotoItem>(response.Photos.Count);
 		foreach (var photo in response.Photos)
 			items.Add(MapPhoto(photo));
 
-		return items;
+		return new PhotoPage(items, response.Cursor, response.HasMore);
 	}
 
 	private static PhotoItem MapPhoto(PhotoDto photo)

@@ -29,24 +29,9 @@ public partial class PhotoLibraryService
 			if (fetchResult[i] is not PHAsset asset)
 				continue;
 
-			var thumbnail = await CreateImageSourceAsync(asset, size, ct);
-			if (thumbnail == null)
-				continue;
-
-			var hash = await ComputeHashAsync(asset, ct);
-			var ratio = imageSizeCache.TryGetValue(asset.LocalIdentifier, out var cachedRatio) ? cachedRatio : 1.0;
-
-			items.Add(new PhotoItem
-			{
-				Id = asset.LocalIdentifier,
-				TakenAt = asset.CreationDate?.ToDateTimeOffset(),
-				Hash = hash,
-				FolderName = "Camera Roll",
-				Thumbnail = thumbnail,
-				FullImage = null,
-				IsSynced = false,
-				AspectRatio = ratio
-			});
+			var item = await BuildPhotoItemAsync(asset, size, ct);
+			if (item != null)
+				items.Add(item);
 		}
 
 		return items;
@@ -54,11 +39,28 @@ public partial class PhotoLibraryService
 
 	private async partial IAsyncEnumerable<PhotoItem> StreamRecentPhotosAsyncCore(int maxCount, CancellationToken ct)
 	{
-		var items = await GetRecentPhotosAsyncCore(maxCount, ct);
-		foreach (var item in items)
+		var options = new PHFetchOptions
+		{
+			SortDescriptors = new[] { new NSSortDescriptor("creationDate", false) }
+		};
+
+		using var fetchResult = PHAsset.FetchAssets(PHAssetMediaType.Image, options);
+		var size = new CGSize(300, 300);
+		var yielded = 0;
+
+		for (nint i = 0; i < fetchResult.Count && yielded < maxCount; i++)
 		{
 			ct.ThrowIfCancellationRequested();
+
+			if (fetchResult[i] is not PHAsset asset)
+				continue;
+
+			var item = await BuildPhotoItemAsync(asset, size, ct);
+			if (item == null)
+				continue;
+
 			yield return item;
+			yielded++;
 		}
 	}
 
@@ -81,6 +83,28 @@ public partial class PhotoLibraryService
 	}
 
 	private static readonly Dictionary<string, double> imageSizeCache = new();
+
+	private static async Task<PhotoItem?> BuildPhotoItemAsync(PHAsset asset, CGSize size, CancellationToken ct)
+	{
+		var thumbnail = await CreateImageSourceAsync(asset, size, ct);
+		if (thumbnail == null)
+			return null;
+
+		var hash = await ComputeHashAsync(asset, ct);
+		var ratio = imageSizeCache.TryGetValue(asset.LocalIdentifier, out var cachedRatio) ? cachedRatio : 1.0;
+
+		return new PhotoItem
+		{
+			Id = asset.LocalIdentifier,
+			TakenAt = asset.CreationDate?.ToDateTimeOffset(),
+			Hash = hash,
+			FolderName = "Camera Roll",
+			Thumbnail = thumbnail,
+			FullImage = null,
+			IsSynced = false,
+			AspectRatio = ratio
+		};
+	}
 
 	private static Task<ImageSource?> CreateImageSourceAsync(PHAsset asset, CGSize size, CancellationToken ct)
 	{
@@ -184,8 +208,18 @@ private static Task<string?> ComputeHashAsync(PHAsset asset, CancellationToken c
 
 private partial Task<ImageSource?> BuildThumbnailAsyncCore(PhotoItem photo, bool lowQuality, CancellationToken ct)
 {
-	// iOS thumbnails are already sized down when loaded; just return existing.
-	return Task.FromResult(photo.Thumbnail);
+	if (photo?.Thumbnail != null)
+		return Task.FromResult(photo.Thumbnail);
+
+	if (string.IsNullOrWhiteSpace(photo?.Id))
+		return Task.FromResult<ImageSource?>(null);
+
+	using var fetchResult = PHAsset.FetchAssetsUsingLocalIdentifiers(new[] { photo.Id }, null);
+	if (fetchResult.Count == 0 || fetchResult[0] is not PHAsset asset)
+		return Task.FromResult<ImageSource?>(null);
+
+	var size = lowQuality ? new CGSize(180, 180) : new CGSize(800, 800);
+	return CreateImageSourceAsync(asset, size, ct);
 }
 }
 

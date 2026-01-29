@@ -11,7 +11,11 @@
     <Shell.TitleView>
         <Grid Padding="12,6"
               ColumnDefinitions="Auto,*,Auto"
-              BackgroundColor="White">
+              BackgroundColor="White"
+              HeightRequest="44"
+              MinimumHeightRequest="44"
+              HorizontalOptions="Fill"
+              VerticalOptions="Center">
             <Button Text="≡"
                     FontSize="20"
                     TextColor="#222"

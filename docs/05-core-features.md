@@ -2,6 +2,7 @@
 
 Gallery grid
 - Virtualized photo grid with incremental loading.
+- Initial load shows the first 30 photos; scrolling loads additional pages of 30.
 - Pull to refresh and error states.
 
 Photo viewer

@@ -2,83 +2,209 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:Lazy.Photos.App"
+             xmlns:albums="clr-namespace:Lazy.Photos.App.Features.Albums"
              x:Class="Lazy.Photos.App.Features.Albums.AlbumsPage"
+             x:DataType="albums:AlbumsViewModel"
              Title="Albums"
              BackgroundColor="White">
 
     <Grid RowDefinitions="Auto,*">
-        <HorizontalStackLayout Padding="16" Spacing="12">
+        <!-- Header -->
+        <Grid Padding="16" ColumnDefinitions="Auto,*,Auto">
             <Button FontFamily="MaterialDesignIcons"
                     Text="{x:Static local:IconFont.Plus}"
                     FontSize="24"
                     BackgroundColor="Transparent"
                     TextColor="#222"
-                    Command="{Binding CreateAlbumCommand}" />
-            <Label Text="Albums"
+                    Command="{Binding ShowCreateAlbumPopupCommand}" />
+            <Label Grid.Column="1"
+                   Text="Albums"
                    FontSize="24"
                    FontAttributes="Bold"
                    TextColor="#222"
-                   VerticalOptions="Center" />
-        </HorizontalStackLayout>
+                   VerticalOptions="Center"
+                   HorizontalOptions="Center" />
+        </Grid>
 
-        <CollectionView Grid.Row="1"
-                        ItemsSource="{Binding Albums}"
-                        SelectionMode="Single"
-                        SelectionChangedCommand="{Binding OpenAlbumCommand}"
-                        SelectionChangedCommandParameter="{Binding Source={RelativeSource Self}, Path=SelectedItem}">
-            <CollectionView.EmptyView>
-                <VerticalStackLayout VerticalOptions="Center"
-                                     HorizontalOptions="Center"
-                                     Spacing="16"
-                                     Padding="32">
-                    <Label FontFamily="MaterialDesignIcons"
-                           Text="{x:Static local:IconFont.FolderMultipleImage}"
-                           FontSize="64"
-                           TextColor="#999"
-                           HorizontalOptions="Center" />
-                    <Label Text="No albums yet"
-                           FontSize="18"
-                           TextColor="#666"
-                           HorizontalOptions="Center" />
-                    <Label Text="Create an album to organize your photos"
-                           FontSize="14"
-                           TextColor="#999"
-                           HorizontalOptions="Center" />
+        <!-- Main Content -->
+        <RefreshView Grid.Row="1"
+                     IsRefreshing="{Binding IsRefreshing}"
+                     Command="{Binding RefreshCommand}">
+            <Grid>
+                <!-- Loading Indicator -->
+                <ActivityIndicator IsRunning="{Binding IsLoading}"
+                                   IsVisible="{Binding IsLoading}"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   Color="#3F5A92" />
+
+                <!-- Error Message -->
+                <Label Text="{Binding ErrorMessage}"
+                       IsVisible="{Binding ErrorMessage, Converter={StaticResource IsNotNullOrEmptyConverter}}"
+                       TextColor="#D32F2F"
+                       FontSize="14"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Start"
+                       Margin="16" />
+
+                <!-- Albums Collection -->
+                <CollectionView ItemsSource="{Binding Albums}"
+                                SelectionMode="None"
+                                IsVisible="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}">
+                    <CollectionView.EmptyView>
+                        <VerticalStackLayout VerticalOptions="Center"
+                                             HorizontalOptions="Center"
+                                             Spacing="16"
+                                             Padding="32">
+                            <Label FontFamily="MaterialDesignIcons"
+                                   Text="{x:Static local:IconFont.FolderMultipleImage}"
+                                   FontSize="64"
+                                   TextColor="#999"
+                                   HorizontalOptions="Center" />
+                            <Label Text="No albums yet"
+                                   FontSize="18"
+                                   TextColor="#666"
+                                   HorizontalOptions="Center" />
+                            <Label Text="Create an album to organize your photos"
+                                   FontSize="14"
+                                   TextColor="#999"
+                                   HorizontalOptions="Center" />
+                            <Button Text="Create Album"
+                                    BackgroundColor="#3F5A92"
+                                    TextColor="White"
+                                    CornerRadius="8"
+                                    Padding="24,12"
+                                    Command="{Binding ShowCreateAlbumPopupCommand}"
+                                    HorizontalOptions="Center"
+                                    Margin="0,16,0,0" />
+                        </VerticalStackLayout>
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemsLayout>
+                        <GridItemsLayout Orientation="Vertical"
+                                         Span="2"
+                                         HorizontalItemSpacing="8"
+                                         VerticalItemSpacing="8" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="albums:AlbumDisplayItem">
+                            <Border Margin="8"
+                                    StrokeShape="RoundRectangle 12"
+                                    Stroke="#E0E0E0"
+                                    BackgroundColor="#F5F5F5"
+                                    HeightRequest="180">
+                                <Grid RowDefinitions="*,Auto">
+                                    <!-- Cover Image / Placeholder -->
+                                    <Grid BackgroundColor="#E8E8E8">
+                                        <Label FontFamily="MaterialDesignIcons"
+                                               Text="{x:Static local:IconFont.ImageMultiple}"
+                                               FontSize="48"
+                                               TextColor="#CCC"
+                                               HorizontalOptions="Center"
+                                               VerticalOptions="Center"
+                                               IsVisible="{Binding CoverThumbnail, Converter={StaticResource IsNullConverter}}" />
+                                        <Image Source="{Binding CoverThumbnail}"
+                                               Aspect="AspectFill"
+                                               IsVisible="{Binding CoverThumbnail, Converter={StaticResource IsNotNullConverter}}" />
+                                    </Grid>
+
+                                    <!-- Album Info -->
+                                    <Grid Grid.Row="1"
+                                          Padding="12,8"
+                                          BackgroundColor="White"
+                                          ColumnDefinitions="*,Auto">
+                                        <VerticalStackLayout>
+                                            <Label Text="{Binding Name}"
+                                                   FontSize="14"
+                                                   FontAttributes="Bold"
+                                                   TextColor="#222"
+                                                   LineBreakMode="TailTruncation" />
+                                            <Label Text="{Binding PhotoCount, StringFormat='{0} photos'}"
+                                                   FontSize="12"
+                                                   TextColor="#666" />
+                                        </VerticalStackLayout>
+
+                                        <!-- Context Menu Button -->
+                                        <Button Grid.Column="1"
+                                                FontFamily="MaterialDesignIcons"
+                                                Text="{x:Static local:IconFont.DotsVertical}"
+                                                FontSize="20"
+                                                TextColor="#666"
+                                                BackgroundColor="Transparent"
+                                                Padding="4"
+                                                VerticalOptions="Center">
+                                            <FlyoutBase.ContextFlyout>
+                                                <MenuFlyout>
+                                                    <MenuFlyoutItem Text="Rename"
+                                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type albums:AlbumsViewModel}}, Path=ShowEditAlbumPopupCommand}"
+                                                                    CommandParameter="{Binding .}" />
+                                                    <MenuFlyoutItem Text="Delete"
+                                                                    Command="{Binding Source={RelativeSource AncestorType={x:Type albums:AlbumsViewModel}}, Path=DeleteAlbumCommand}"
+                                                                    CommandParameter="{Binding .}" />
+                                                </MenuFlyout>
+                                            </FlyoutBase.ContextFlyout>
+                                        </Button>
+                                    </Grid>
+
+                                    <!-- Tap Gesture for Opening Album -->
+                                    <Grid.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type albums:AlbumsViewModel}}, Path=OpenAlbumCommand}"
+                                                              CommandParameter="{Binding .}" />
+                                    </Grid.GestureRecognizers>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </RefreshView>
+
+        <!-- Edit/Create Album Popup Overlay -->
+        <Grid Grid.RowSpan="2"
+              IsVisible="{Binding IsEditPopupVisible}"
+              BackgroundColor="#80000000">
+            <Grid.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding CancelEditCommand}" />
+            </Grid.GestureRecognizers>
+
+            <Border StrokeShape="RoundRectangle 16"
+                    Stroke="Transparent"
+                    BackgroundColor="White"
+                    Padding="24"
+                    WidthRequest="300"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center">
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer />
+                </Border.GestureRecognizers>
+
+                <VerticalStackLayout Spacing="16">
+                    <Label Text="{Binding EditPopupTitle}"
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           TextColor="#222" />
+
+                    <Entry Placeholder="Album name"
+                           Text="{Binding EditingAlbumName}"
+                           FontSize="16"
+                           TextColor="#222"
+                           PlaceholderColor="#999" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <Button Text="Cancel"
+                                BackgroundColor="#E0E0E0"
+                                TextColor="#222"
+                                CornerRadius="8"
+                                Command="{Binding CancelEditCommand}" />
+                        <Button Grid.Column="1"
+                                Text="Save"
+                                BackgroundColor="#3F5A92"
+                                TextColor="White"
+                                CornerRadius="8"
+                                Command="{Binding SaveAlbumCommand}" />
+                    </Grid>
                 </VerticalStackLayout>
-            </CollectionView.EmptyView>
-            <CollectionView.ItemsLayout>
-                <GridItemsLayout Orientation="Vertical"
-                                 Span="2"
-                                 HorizontalItemSpacing="8"
-                                 VerticalItemSpacing="8" />
-            </CollectionView.ItemsLayout>
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Border Margin="8"
-                            StrokeShape="RoundRectangle 12"
-                            Stroke="#E0E0E0"
-                            BackgroundColor="#F5F5F5"
-                            HeightRequest="180">
-                        <Grid RowDefinitions="*,Auto">
-                            <Image Source="{Binding CoverThumbnail}"
-                                   Aspect="AspectFill" />
-                            <VerticalStackLayout Grid.Row="1"
-                                                 Padding="12,8"
-                                                 BackgroundColor="White">
-                                <Label Text="{Binding Name}"
-                                       FontSize="14"
-                                       FontAttributes="Bold"
-                                       TextColor="#222"
-                                       LineBreakMode="TailTruncation" />
-                                <Label Text="{Binding PhotoCount, StringFormat='{0} photos'}"
-                                       FontSize="12"
-                                       TextColor="#666" />
-                            </VerticalStackLayout>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+            </Border>
+        </Grid>
     </Grid>
 
 </ContentPage>

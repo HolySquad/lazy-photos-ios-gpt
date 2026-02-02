@@ -6,6 +6,7 @@
     xmlns:photos="clr-namespace:Lazy.Photos.App.Features.Photos"
     xmlns:search="clr-namespace:Lazy.Photos.App.Features.Search"
     xmlns:dev="clr-namespace:Lazy.Photos.App.Features.DevStats"
+    xmlns:local="clr-namespace:Lazy.Photos.App"
     Title="Lazy Photos">
 
     <Shell.TitleView>
@@ -16,11 +17,12 @@
               MinimumHeightRequest="44"
               HorizontalOptions="Fill"
               VerticalOptions="Center">
-            <Button Text="≡"
-                    FontSize="20"
+            <Button FontSize="24"
                     TextColor="#222"
                     BackgroundColor="Transparent"
-                    Command="{Binding ShowSignInCommand}" />
+                    Command="{Binding ShowSignInCommand}"
+                    FontFamily="MaterialDesignIcons"
+                    Text="{x:Static local:IconFont.Menu}" />
             <Label Grid.Column="1"
                    Text="Lazy Photos"
                    HorizontalTextAlignment="Center"
@@ -29,11 +31,12 @@
                    FontAttributes="Bold"
                    TextColor="#222" />
             <Button Grid.Column="2"
-                    Text="○"
-                    FontSize="20"
+                    FontSize="24"
                     TextColor="#222"
                     BackgroundColor="Transparent"
-                    Command="{Binding ShowSignInCommand}" />
+                    Command="{Binding ShowSignInCommand}"
+                    FontFamily="MaterialDesignIcons"
+                    Text="{x:Static local:IconFont.AccountCircle}" />
         </Grid>
     </Shell.TitleView>
 
@@ -41,15 +44,33 @@
         <ShellContent
             Title="Photos"
             ContentTemplate="{DataTemplate photos:MainPage}"
-            Route="MainPage" />
+            Route="MainPage">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="MaterialDesignIcons"
+                                 Glyph="{x:Static local:IconFont.ImageMultiple}"
+                                 Color="#222" />
+            </ShellContent.Icon>
+        </ShellContent>
         <ShellContent
             Title="Search"
             ContentTemplate="{DataTemplate search:SearchPage}"
-            Route="SearchPage" />
+            Route="SearchPage">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="MaterialDesignIcons"
+                                 Glyph="{x:Static local:IconFont.Magnify}"
+                                 Color="#222" />
+            </ShellContent.Icon>
+        </ShellContent>
         <ShellContent
             Title="DevStats"
             ContentTemplate="{DataTemplate dev:DevStatsPage}"
-            Route="DevStatsPage" />
+            Route="DevStatsPage">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="MaterialDesignIcons"
+                                 Glyph="{x:Static local:IconFont.ChartBar}"
+                                 Color="#222" />
+            </ShellContent.Icon>
+        </ShellContent>
     </TabBar>
 
 </Shell>

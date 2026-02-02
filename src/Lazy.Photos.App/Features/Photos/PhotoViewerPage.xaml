@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Lazy.Photos.App"
              x:Class="Lazy.Photos.App.Features.Photos.PhotoViewerPage"
              BackgroundColor="Black"
              Shell.NavBarIsVisible="False"
@@ -9,7 +10,9 @@
     <Grid RowDefinitions="Auto,*,Auto">
         <Grid Padding="12" ColumnDefinitions="Auto,*,Auto,Auto"
               IsVisible="{Binding IsChromeVisible}">
-            <Button Text="&lt;"
+            <Button FontFamily="MaterialDesignIcons"
+                    Text="{x:Static local:IconFont.ArrowLeft}"
+                    FontSize="24"
                     TextColor="White"
                     BackgroundColor="Transparent"
                     Command="{Binding GoBackCommand}" />
@@ -19,11 +22,15 @@
                    VerticalOptions="Center"
                    LineBreakMode="TailTruncation" />
             <Button Grid.Column="2"
-                    Text="*"
+                    FontFamily="MaterialDesignIcons"
+                    Text="{x:Static local:IconFont.StarOutline}"
+                    FontSize="24"
                     TextColor="White"
                     BackgroundColor="Transparent" />
             <Button Grid.Column="3"
-                    Text="..."
+                    FontFamily="MaterialDesignIcons"
+                    Text="{x:Static local:IconFont.DotsVertical}"
+                    FontSize="24"
                     TextColor="White"
                     BackgroundColor="Transparent" />
         </Grid>
@@ -46,21 +53,50 @@
               ColumnDefinitions="*,*,*,*"
               BackgroundColor="#000000"
               IsVisible="{Binding IsChromeVisible}">
-            <Button Text="Share"
-                    TextColor="White"
-                    BackgroundColor="Transparent" />
-            <Button Grid.Column="1"
-                    Text="Edit"
-                    TextColor="White"
-                    BackgroundColor="Transparent" />
-            <Button Grid.Column="2"
-                    Text="Lens"
-                    TextColor="White"
-                    BackgroundColor="Transparent" />
-            <Button Grid.Column="3"
-                    Text="Delete"
-                    TextColor="White"
-                    BackgroundColor="Transparent" />
+            <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
+                <Label FontFamily="MaterialDesignIcons"
+                       Text="{x:Static local:IconFont.Share}"
+                       FontSize="24"
+                       TextColor="White"
+                       HorizontalOptions="Center" />
+                <Label Text="Share"
+                       FontSize="12"
+                       TextColor="White"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="1" Spacing="4" HorizontalOptions="Center">
+                <Label FontFamily="MaterialDesignIcons"
+                       Text="{x:Static local:IconFont.Pencil}"
+                       FontSize="24"
+                       TextColor="White"
+                       HorizontalOptions="Center" />
+                <Label Text="Edit"
+                       FontSize="12"
+                       TextColor="White"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="2" Spacing="4" HorizontalOptions="Center">
+                <Label FontFamily="MaterialDesignIcons"
+                       Text="{x:Static local:IconFont.ImageSearch}"
+                       FontSize="24"
+                       TextColor="White"
+                       HorizontalOptions="Center" />
+                <Label Text="Lens"
+                       FontSize="12"
+                       TextColor="White"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+            <VerticalStackLayout Grid.Column="3" Spacing="4" HorizontalOptions="Center">
+                <Label FontFamily="MaterialDesignIcons"
+                       Text="{x:Static local:IconFont.Delete}"
+                       FontSize="24"
+                       TextColor="White"
+                       HorizontalOptions="Center" />
+                <Label Text="Delete"
+                       FontSize="12"
+                       TextColor="White"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
         </Grid>
     </Grid>
 

@@ -18,8 +18,10 @@ public sealed class PhotoSectionBuilder : IPhotoSectionBuilder
 		if (orderedPhotos.Count == 0)
 			return;
 
-		var currentDate = GetLocalDate(orderedPhotos[0].TakenAt);
-		var currentSection = new PhotoSection(FormatSectionTitle(currentDate), Array.Empty<PhotoItem>());
+		var firstPhoto = orderedPhotos[0];
+		var currentDate = GetLocalDate(firstPhoto.TakenAt);
+		var currentLocation = firstPhoto.FolderName;
+		var currentSection = new PhotoSection(FormatSectionTitle(currentDate), currentLocation, Array.Empty<PhotoItem>());
 		targetSections.Add(currentSection);
 
 		foreach (var photo in orderedPhotos)
@@ -28,7 +30,8 @@ public sealed class PhotoSectionBuilder : IPhotoSectionBuilder
 			if (photoDate != currentDate)
 			{
 				currentDate = photoDate;
-				currentSection = new PhotoSection(FormatSectionTitle(currentDate), Array.Empty<PhotoItem>());
+				currentLocation = photo.FolderName;
+				currentSection = new PhotoSection(FormatSectionTitle(currentDate), currentLocation, Array.Empty<PhotoItem>());
 				targetSections.Add(currentSection);
 			}
 			currentSection.Add(photo);
@@ -55,15 +58,16 @@ public sealed class PhotoSectionBuilder : IPhotoSectionBuilder
 
 		for (var i = startIndex; i < endIndexExclusive; i++)
 		{
-			var photoDate = GetLocalDate(orderedPhotos[i].TakenAt);
+			var photo = orderedPhotos[i];
+			var photoDate = GetLocalDate(photo.TakenAt);
 			if (photoDate != currentDate)
 			{
 				currentDate = photoDate;
-				currentSection = new PhotoSection(FormatSectionTitle(currentDate), Array.Empty<PhotoItem>());
+				currentSection = new PhotoSection(FormatSectionTitle(currentDate), photo.FolderName, Array.Empty<PhotoItem>());
 				targetSections.Add(currentSection);
 			}
 
-			currentSection.Add(orderedPhotos[i]);
+			currentSection.Add(photo);
 		}
 	}
 
@@ -74,7 +78,8 @@ public sealed class PhotoSectionBuilder : IPhotoSectionBuilder
 			return "Today";
 		if (date == today.AddDays(-1))
 			return "Yesterday";
-		return date.ToString("ddd, MMM d");
+		// Google Photos style: "Sat, 31 Jan"
+		return date.ToString("ddd, d MMM");
 	}
 
 	private static DateTime GetLocalDate(DateTimeOffset? takenAt)

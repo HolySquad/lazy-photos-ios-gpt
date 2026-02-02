@@ -18,6 +18,16 @@
     <Color x:Key="MidnightBlue">#190649</Color>
     <Color x:Key="OffBlack">#1f1f1f</Color>
 
+    <!-- Google Photos Dark Theme Colors -->
+    <Color x:Key="DarkBackground">#1F1F1F</Color>
+    <Color x:Key="DarkSurface">#2D2D2D</Color>
+    <Color x:Key="DarkTextPrimary">#FFFFFF</Color>
+    <Color x:Key="DarkTextSecondary">#AAAAAA</Color>
+    <Color x:Key="GoogleBlue">#4285F4</Color>
+    <Color x:Key="GoogleRed">#EA4335</Color>
+    <Color x:Key="GoogleYellow">#FBBC05</Color>
+    <Color x:Key="GoogleGreen">#34A853</Color>
+
     <Color x:Key="Gray100">#E1E1E1</Color>
     <Color x:Key="Gray200">#C8C8C8</Color>
     <Color x:Key="Gray300">#ACACAC</Color>

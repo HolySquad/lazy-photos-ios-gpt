@@ -6,50 +6,97 @@
     xmlns:photos="clr-namespace:Lazy.Photos.App.Features.Photos"
     xmlns:search="clr-namespace:Lazy.Photos.App.Features.Search"
     xmlns:dev="clr-namespace:Lazy.Photos.App.Features.DevStats"
-    Title="Lazy Photos">
+    Title="Lazy Photos"
+    BackgroundColor="#1F1F1F"
+    FlyoutBehavior="Disabled">
+
+    <Shell.Resources>
+        <Style TargetType="TabBar">
+            <Setter Property="Shell.TabBarBackgroundColor" Value="#1F1F1F" />
+            <Setter Property="Shell.TabBarTitleColor" Value="#AAAAAA" />
+            <Setter Property="Shell.TabBarUnselectedColor" Value="#666666" />
+            <Setter Property="Shell.TabBarForegroundColor" Value="#4285F4" />
+        </Style>
+    </Shell.Resources>
 
     <Shell.TitleView>
-        <Grid Padding="12,6"
-              ColumnDefinitions="Auto,*,Auto"
-              BackgroundColor="White"
-              HeightRequest="44"
-              MinimumHeightRequest="44"
+        <Grid Padding="16,8"
+              ColumnDefinitions="Auto,*,Auto,Auto,Auto"
+              BackgroundColor="#1F1F1F"
+              HeightRequest="48"
+              MinimumHeightRequest="48"
               HorizontalOptions="Fill"
               VerticalOptions="Center">
-            <Button Text="≡"
-                    FontSize="20"
-                    TextColor="#222"
-                    BackgroundColor="Transparent"
-                    Command="{Binding ShowSignInCommand}" />
-            <Label Grid.Column="1"
-                   Text="Lazy Photos"
-                   HorizontalTextAlignment="Center"
-                   VerticalTextAlignment="Center"
-                   FontSize="20"
-                   FontAttributes="Bold"
-                   TextColor="#222" />
+            <!-- Google Photos style logo placeholder -->
+            <Grid WidthRequest="32" HeightRequest="32" VerticalOptions="Center">
+                <BoxView Color="#EA4335" WidthRequest="14" HeightRequest="14" HorizontalOptions="Start" VerticalOptions="Start" />
+                <BoxView Color="#4285F4" WidthRequest="14" HeightRequest="14" HorizontalOptions="End" VerticalOptions="Start" />
+                <BoxView Color="#FBBC05" WidthRequest="14" HeightRequest="14" HorizontalOptions="Start" VerticalOptions="End" />
+                <BoxView Color="#34A853" WidthRequest="14" HeightRequest="14" HorizontalOptions="End" VerticalOptions="End" />
+            </Grid>
+            <!-- Spacer -->
+            <BoxView Grid.Column="1" Color="Transparent" />
+            <!-- Plus button -->
             <Button Grid.Column="2"
-                    Text="○"
-                    FontSize="20"
-                    TextColor="#222"
+                    Text="+"
+                    FontSize="24"
+                    TextColor="White"
                     BackgroundColor="Transparent"
-                    Command="{Binding ShowSignInCommand}" />
+                    WidthRequest="44"
+                    HeightRequest="44"
+                    Padding="0" />
+            <!-- Notification bell -->
+            <Button Grid.Column="3"
+                    Text="&#x1F514;"
+                    FontSize="18"
+                    TextColor="White"
+                    BackgroundColor="Transparent"
+                    WidthRequest="44"
+                    HeightRequest="44"
+                    Padding="0" />
+            <!-- Profile avatar -->
+            <Border Grid.Column="4"
+                    Stroke="#4285F4"
+                    StrokeThickness="2"
+                    StrokeShape="Ellipse"
+                    WidthRequest="36"
+                    HeightRequest="36"
+                    VerticalOptions="Center"
+                    Margin="4,0,0,0">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#4285F4" Offset="0.0" />
+                        <GradientStop Color="#34A853" Offset="1.0" />
+                    </LinearGradientBrush>
+                </Border.Background>
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ShowSignInCommand}" />
+                </Border.GestureRecognizers>
+            </Border>
         </Grid>
     </Shell.TitleView>
 
     <TabBar>
         <ShellContent
             Title="Photos"
+            Icon="{OnPlatform iOS='photo.fill', Android='ic_photo'}"
             ContentTemplate="{DataTemplate photos:MainPage}"
             Route="MainPage" />
         <ShellContent
+            Title="Collections"
+            Icon="{OnPlatform iOS='square.grid.2x2.fill', Android='ic_collections'}"
+            ContentTemplate="{DataTemplate dev:DevStatsPage}"
+            Route="CollectionsPage" />
+        <ShellContent
+            Title="Create"
+            Icon="{OnPlatform iOS='pencil', Android='ic_create'}"
+            ContentTemplate="{DataTemplate dev:DevStatsPage}"
+            Route="CreatePage" />
+        <ShellContent
             Title="Search"
+            Icon="{OnPlatform iOS='magnifyingglass', Android='ic_search'}"
             ContentTemplate="{DataTemplate search:SearchPage}"
             Route="SearchPage" />
-        <ShellContent
-            Title="DevStats"
-            ContentTemplate="{DataTemplate dev:DevStatsPage}"
-            Route="DevStatsPage" />
     </TabBar>
 
 </Shell>

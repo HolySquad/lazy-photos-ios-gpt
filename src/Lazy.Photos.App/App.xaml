@@ -13,6 +13,7 @@
             </ResourceDictionary.MergedDictionaries>
             <converters:AspectHeightConverter x:Key="AspectHeightConverter" />
             <converters:InverseBooleanConverter x:Key="InverseBooleanConverter" />
+            <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -4,77 +4,69 @@
              xmlns:local="clr-namespace:Lazy.Photos.App.Features.Photos"
              x:Class="Lazy.Photos.App.Features.Photos.MainPage"
              Title="Photos"
-             BackgroundColor="White">
+             BackgroundColor="#1F1F1F">
 
     <Grid RowDefinitions="Auto,*">
         <Label Grid.Row="0"
                Padding="12,8"
                Text="{Binding ErrorMessage}"
-               TextColor="#B00020"
+               TextColor="#CF6679"
+               BackgroundColor="#2D2D2D"
                IsVisible="{Binding HasError}" />
 
         <RefreshView Grid.Row="1"
                      IsRefreshing="{Binding IsBusy}"
-                     Command="{Binding RefreshCommand}">
+                     Command="{Binding RefreshCommand}"
+                     RefreshColor="White">
             <CollectionView x:Name="PhotosCollection"
                             ItemsSource="{Binding PhotoSections}"
                             IsGrouped="True"
                             ItemSizingStrategy="MeasureAllItems"
                             ItemsUpdatingScrollMode="KeepScrollOffset"
                             SelectionMode="None"
-                            Margin="12,8">
+                            BackgroundColor="Transparent"
+                            Margin="0">
                 <CollectionView.ItemsLayout>
                     <GridItemsLayout Orientation="Vertical"
                                      Span="{Binding Columns}"
-                                     HorizontalItemSpacing="4"
-                                     VerticalItemSpacing="4" />
+                                     HorizontalItemSpacing="2"
+                                     VerticalItemSpacing="2" />
                 </CollectionView.ItemsLayout>
                 <CollectionView.GroupHeaderTemplate>
                     <DataTemplate>
-                        <Label Text="{Binding Title}"
-                               FontSize="18"
-                               FontAttributes="Bold"
-                               TextColor="#111"
-                               Margin="0,12,0,6" />
+                        <Grid ColumnDefinitions="*,Auto"
+                              Padding="16,16,16,8"
+                              BackgroundColor="#1F1F1F">
+                            <StackLayout Grid.Column="0"
+                                         Spacing="2">
+                                <Label Text="{Binding Title}"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="White" />
+                                <Label Text="{Binding Location}"
+                                       FontSize="13"
+                                       TextColor="#AAAAAA"
+                                       IsVisible="{Binding Location, Converter={StaticResource IsNotNullConverter}}" />
+                            </StackLayout>
+                            <Button Grid.Column="1"
+                                    Text="..."
+                                    FontSize="20"
+                                    TextColor="#AAAAAA"
+                                    BackgroundColor="Transparent"
+                                    VerticalOptions="Start"
+                                    Padding="8,0"
+                                    HeightRequest="32"
+                                    WidthRequest="40" />
+                        </Grid>
                     </DataTemplate>
                 </CollectionView.GroupHeaderTemplate>
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Grid>
+                        <Grid BackgroundColor="#2D2D2D">
                             <Image Source="{Binding Thumbnail}"
                                    Aspect="AspectFill"
-                                   WidthRequest="{Binding BindingContext.CellSize, Source={RelativeSource AncestorType={x:Type local:MainPage}}}">
-                                <Image.HeightRequest>
-                                    <MultiBinding Converter="{StaticResource AspectHeightConverter}">
-                                        <Binding Path="AspectRatio" />
-                                        <Binding Path="BindingContext.CellSize" Source="{RelativeSource AncestorType={x:Type local:MainPage}}" />
-                                    </MultiBinding>
-                                </Image.HeightRequest>
-                            </Image>
-
-                            <Grid HorizontalOptions="End"
-                                  VerticalOptions="Start"
-                                  Margin="6,4">
-                                <Border BackgroundColor="#2E7D32"
-                                        WidthRequest="12"
-                                        HeightRequest="12"
-                                        StrokeShape="Ellipse"
-                                        IsVisible="{Binding IsSynced}" />
-                                <Border BackgroundColor="#EF6C00"
-                                        WidthRequest="12"
-                                        HeightRequest="12"
-                                        StrokeShape="Ellipse"
-                                        IsVisible="True">
-                                    <Border.Triggers>
-                                        <DataTrigger TargetType="Border"
-                                                     Binding="{Binding IsSynced}"
-                                                     Value="True">
-                                            <Setter Property="IsVisible" Value="False" />
-                                        </DataTrigger>
-                                    </Border.Triggers>
-                                </Border>
-                            </Grid>
-
+                                   WidthRequest="{Binding BindingContext.CellSize, Source={RelativeSource AncestorType={x:Type local:MainPage}}}"
+                                   HeightRequest="{Binding BindingContext.CellSize, Source={RelativeSource AncestorType={x:Type local:MainPage}}}" />
                             <Grid.GestureRecognizers>
                                 <TapGestureRecognizer Command="{Binding BindingContext.OpenPhotoCommand, Source={RelativeSource AncestorType={x:Type local:MainPage}}}"
                                                       CommandParameter="{Binding .}" />
@@ -85,6 +77,7 @@
                 <CollectionView.EmptyView>
                     <Label Text="No photos found on this device."
                            Padding="12"
+                           TextColor="#AAAAAA"
                            HorizontalTextAlignment="Center"
                            VerticalTextAlignment="Center" />
                 </CollectionView.EmptyView>
@@ -92,7 +85,7 @@
         </RefreshView>
 
         <Grid Grid.Row="1"
-              BackgroundColor="#80000000"
+              BackgroundColor="#CC000000"
               IsVisible="{Binding IsInitializing}"
               InputTransparent="False">
             <ActivityIndicator IsRunning="True"

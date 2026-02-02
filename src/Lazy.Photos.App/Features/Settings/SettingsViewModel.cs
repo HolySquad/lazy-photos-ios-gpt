@@ -18,6 +18,24 @@ public sealed partial class SettingsViewModel : ObservableObject
     private bool wifiOnlySync = true;
 
     [ObservableProperty]
+    private int selectedUploadQualityIndex;
+
+    public IReadOnlyList<UploadQualityOption> UploadQualityOptions { get; } = new[]
+    {
+        new UploadQualityOption("Original", "Full resolution, larger file size"),
+        new UploadQualityOption("High quality", "Slightly compressed, saves storage"),
+        new UploadQualityOption("Storage saver", "Reduced resolution, minimal storage")
+    };
+
+    public string SelectedUploadQualityDescription =>
+        UploadQualityOptions[SelectedUploadQualityIndex].Description;
+
+    partial void OnSelectedUploadQualityIndexChanged(int value)
+    {
+        OnPropertyChanged(nameof(SelectedUploadQualityDescription));
+    }
+
+    [ObservableProperty]
     private int cachedCount;
 
     [ObservableProperty]
@@ -163,4 +181,9 @@ public sealed partial class SettingsViewModel : ObservableObject
             };
         });
     }
+}
+
+public sealed record UploadQualityOption(string Name, string Description)
+{
+    public override string ToString() => Name;
 }

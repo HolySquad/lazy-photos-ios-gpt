@@ -82,6 +82,28 @@
                                 IsToggled="{Binding WifiOnlySync}"
                                 VerticalOptions="Center" />
                     </Grid>
+                    <BoxView HeightRequest="1" Color="#E0E0E0" />
+                    <Grid Padding="16" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" RowSpacing="8">
+                        <Label FontFamily="MaterialDesignIcons"
+                               Text="{x:Static local:IconFont.CloudUpload}"
+                               FontSize="24"
+                               TextColor="#666"
+                               VerticalOptions="Start"
+                               Grid.RowSpan="2" />
+                        <VerticalStackLayout Grid.Column="1" Margin="12,0,0,0" Spacing="4">
+                            <Label Text="Upload quality"
+                                   FontSize="16"
+                                   TextColor="#222" />
+                            <Picker ItemsSource="{Binding UploadQualityOptions}"
+                                    SelectedIndex="{Binding SelectedUploadQualityIndex}"
+                                    TextColor="#222"
+                                    FontSize="14"
+                                    HorizontalOptions="Fill" />
+                            <Label Text="{Binding SelectedUploadQualityDescription}"
+                                   FontSize="12"
+                                   TextColor="#999" />
+                        </VerticalStackLayout>
+                    </Grid>
                 </VerticalStackLayout>
             </Border>
 

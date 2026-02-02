@@ -45,4 +45,6 @@ public static class IconFont
     // Sync & Network
     public const string CloudSync = "\U000F063F";
     public const string Wifi = "\U000F05A9";
+    public const string CloudUpload = "\U000F0167";
+    public const string QualityHigh = "\U000F0435";
 }

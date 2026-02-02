@@ -5,8 +5,7 @@
              xmlns:albums="clr-namespace:Lazy.Photos.App.Features.Albums"
              x:Class="Lazy.Photos.App.Features.Albums.AlbumsPage"
              x:DataType="albums:AlbumsViewModel"
-             Title="Albums"
-             BackgroundColor="White">
+             Title="Albums">
 
     <Grid RowDefinitions="Auto,*">
         <!-- Header -->
@@ -15,13 +14,12 @@
                     Text="{x:Static local:IconFont.Plus}"
                     FontSize="24"
                     BackgroundColor="Transparent"
-                    TextColor="#222"
+                    TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}"
                     Command="{Binding ShowCreateAlbumPopupCommand}" />
             <Label Grid.Column="1"
                    Text="Albums"
                    FontSize="24"
                    FontAttributes="Bold"
-                   TextColor="#222"
                    VerticalOptions="Center"
                    HorizontalOptions="Center" />
         </Grid>
@@ -35,13 +33,12 @@
                 <ActivityIndicator IsRunning="{Binding IsLoading}"
                                    IsVisible="{Binding IsLoading}"
                                    HorizontalOptions="Center"
-                                   VerticalOptions="Center"
-                                   Color="#3F5A92" />
+                                   VerticalOptions="Center" />
 
                 <!-- Error Message -->
                 <Label Text="{Binding ErrorMessage}"
                        IsVisible="{Binding ErrorMessage, Converter={StaticResource IsNotNullOrEmptyConverter}}"
-                       TextColor="#D32F2F"
+                       TextColor="{StaticResource Magenta}"
                        FontSize="14"
                        HorizontalOptions="Center"
                        VerticalOptions="Start"
@@ -59,19 +56,17 @@
                             <Label FontFamily="MaterialDesignIcons"
                                    Text="{x:Static local:IconFont.FolderMultipleImage}"
                                    FontSize="64"
-                                   TextColor="#999"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"
                                    HorizontalOptions="Center" />
                             <Label Text="No albums yet"
                                    FontSize="18"
-                                   TextColor="#666"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                                    HorizontalOptions="Center" />
                             <Label Text="Create an album to organize your photos"
                                    FontSize="14"
-                                   TextColor="#999"
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"
                                    HorizontalOptions="Center" />
                             <Button Text="Create Album"
-                                    BackgroundColor="#3F5A92"
-                                    TextColor="White"
                                     CornerRadius="8"
                                     Padding="24,12"
                                     Command="{Binding ShowCreateAlbumPopupCommand}"
@@ -89,16 +84,15 @@
                         <DataTemplate x:DataType="albums:AlbumDisplayItem">
                             <Border Margin="8"
                                     StrokeShape="RoundRectangle 12"
-                                    Stroke="#E0E0E0"
-                                    BackgroundColor="#F5F5F5"
+                                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray100}, Dark={StaticResource Gray600}}"
                                     HeightRequest="180">
                                 <Grid RowDefinitions="*,Auto">
                                     <!-- Cover Image / Placeholder -->
-                                    <Grid BackgroundColor="#E8E8E8">
+                                    <Grid BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray500}}">
                                         <Label FontFamily="MaterialDesignIcons"
                                                Text="{x:Static local:IconFont.ImageMultiple}"
                                                FontSize="48"
-                                               TextColor="#CCC"
+                                               TextColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray400}}"
                                                HorizontalOptions="Center"
                                                VerticalOptions="Center"
                                                IsVisible="{Binding CoverThumbnail, Converter={StaticResource IsNullConverter}}" />
@@ -110,17 +104,16 @@
                                     <!-- Album Info -->
                                     <Grid Grid.Row="1"
                                           Padding="12,8"
-                                          BackgroundColor="White"
+                                          BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}"
                                           ColumnDefinitions="*,Auto">
                                         <VerticalStackLayout>
                                             <Label Text="{Binding Name}"
                                                    FontSize="14"
                                                    FontAttributes="Bold"
-                                                   TextColor="#222"
                                                    LineBreakMode="TailTruncation" />
                                             <Label Text="{Binding PhotoCount, StringFormat='{0} photos'}"
                                                    FontSize="12"
-                                                   TextColor="#666" />
+                                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
                                         </VerticalStackLayout>
 
                                         <!-- Context Menu Button -->
@@ -128,7 +121,7 @@
                                                 FontFamily="MaterialDesignIcons"
                                                 Text="{x:Static local:IconFont.DotsVertical}"
                                                 FontSize="20"
-                                                TextColor="#666"
+                                                TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                                                 BackgroundColor="Transparent"
                                                 Padding="4"
                                                 VerticalOptions="Center">
@@ -168,7 +161,7 @@
 
             <Border StrokeShape="RoundRectangle 16"
                     Stroke="Transparent"
-                    BackgroundColor="White"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray950}}"
                     Padding="24"
                     WidthRequest="300"
                     HorizontalOptions="Center"
@@ -180,25 +173,20 @@
                 <VerticalStackLayout Spacing="16">
                     <Label Text="{Binding EditPopupTitle}"
                            FontSize="20"
-                           FontAttributes="Bold"
-                           TextColor="#222" />
+                           FontAttributes="Bold" />
 
                     <Entry Placeholder="Album name"
                            Text="{Binding EditingAlbumName}"
-                           FontSize="16"
-                           TextColor="#222"
-                           PlaceholderColor="#999" />
+                           FontSize="16" />
 
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                         <Button Text="Cancel"
-                                BackgroundColor="#E0E0E0"
-                                TextColor="#222"
+                                BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}"
+                                TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}"
                                 CornerRadius="8"
                                 Command="{Binding CancelEditCommand}" />
                         <Button Grid.Column="1"
                                 Text="Save"
-                                BackgroundColor="#3F5A92"
-                                TextColor="White"
                                 CornerRadius="8"
                                 Command="{Binding SaveAlbumCommand}" />
                     </Grid>

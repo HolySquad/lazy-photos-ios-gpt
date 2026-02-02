@@ -3,34 +3,31 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:Lazy.Photos.App"
              x:Class="Lazy.Photos.App.Features.Settings.SettingsPage"
-             Title="Settings"
-             BackgroundColor="White">
+             Title="Settings">
 
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="16">
 
             <!-- Account Section -->
             <Border StrokeShape="RoundRectangle 12"
-                    Stroke="#E0E0E0"
                     Padding="16">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                     <Label FontFamily="MaterialDesignIcons"
                            Text="{x:Static local:IconFont.AccountCircle}"
                            FontSize="40"
-                           TextColor="#666"
+                           TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                            VerticalOptions="Center" />
                     <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
                         <Label Text="Not signed in"
                                FontSize="16"
-                               FontAttributes="Bold"
-                               TextColor="#222" />
+                               FontAttributes="Bold" />
                         <Label Text="Sign in to sync your photos"
                                FontSize="13"
-                               TextColor="#666" />
+                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
                     </VerticalStackLayout>
                     <Button Grid.Column="2"
                             Text="Sign In"
-                            BackgroundColor="#3F5A92"
+                            BackgroundColor="{StaticResource Primary}"
                             TextColor="White"
                             CornerRadius="8"
                             Padding="16,8"
@@ -42,66 +39,61 @@
             <Label Text="General"
                    FontSize="14"
                    FontAttributes="Bold"
-                   TextColor="#666"
+                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                    Margin="0,8,0,0" />
 
             <Border StrokeShape="RoundRectangle 12"
-                    Stroke="#E0E0E0"
                     Padding="0">
                 <VerticalStackLayout>
                     <Grid Padding="16" ColumnDefinitions="Auto,*,Auto">
                         <Label FontFamily="MaterialDesignIcons"
                                Text="{x:Static local:IconFont.CloudSync}"
                                FontSize="24"
-                               TextColor="#666"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                                VerticalOptions="Center" />
                         <Label Grid.Column="1"
                                Text="Auto-sync photos"
                                FontSize="16"
-                               TextColor="#222"
                                VerticalOptions="Center"
                                Margin="12,0,0,0" />
                         <Switch Grid.Column="2"
                                 IsToggled="{Binding AutoSyncEnabled}"
                                 VerticalOptions="Center" />
                     </Grid>
-                    <BoxView HeightRequest="1" Color="#E0E0E0" />
+                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
                     <Grid Padding="16" ColumnDefinitions="Auto,*,Auto">
                         <Label FontFamily="MaterialDesignIcons"
                                Text="{x:Static local:IconFont.Wifi}"
                                FontSize="24"
-                               TextColor="#666"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                                VerticalOptions="Center" />
                         <Label Grid.Column="1"
                                Text="Sync on Wi-Fi only"
                                FontSize="16"
-                               TextColor="#222"
                                VerticalOptions="Center"
                                Margin="12,0,0,0" />
                         <Switch Grid.Column="2"
                                 IsToggled="{Binding WifiOnlySync}"
                                 VerticalOptions="Center" />
                     </Grid>
-                    <BoxView HeightRequest="1" Color="#E0E0E0" />
+                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
                     <Grid Padding="16" ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" RowSpacing="8">
                         <Label FontFamily="MaterialDesignIcons"
                                Text="{x:Static local:IconFont.CloudUpload}"
                                FontSize="24"
-                               TextColor="#666"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                                VerticalOptions="Start"
                                Grid.RowSpan="2" />
                         <VerticalStackLayout Grid.Column="1" Margin="12,0,0,0" Spacing="4">
                             <Label Text="Upload quality"
-                                   FontSize="16"
-                                   TextColor="#222" />
+                                   FontSize="16" />
                             <Picker ItemsSource="{Binding UploadQualityOptions}"
                                     SelectedIndex="{Binding SelectedUploadQualityIndex}"
-                                    TextColor="#222"
                                     FontSize="14"
                                     HorizontalOptions="Fill" />
                             <Label Text="{Binding SelectedUploadQualityDescription}"
                                    FontSize="12"
-                                   TextColor="#999" />
+                                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
                         </VerticalStackLayout>
                     </Grid>
                 </VerticalStackLayout>
@@ -111,33 +103,32 @@
             <Label Text="Storage &amp; Cache"
                    FontSize="14"
                    FontAttributes="Bold"
-                   TextColor="#666"
+                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                    Margin="0,8,0,0" />
 
             <Border StrokeShape="RoundRectangle 12"
-                    Stroke="#E0E0E0"
                     Padding="16">
                 <VerticalStackLayout Spacing="12">
                     <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
-                        <Label Text="Cached photos" Grid.Row="0" TextColor="#222" />
-                        <Label Text="{Binding CachedCount}" Grid.Row="0" Grid.Column="1" TextColor="#666" />
+                        <Label Text="Cached photos" Grid.Row="0" />
+                        <Label Text="{Binding CachedCount}" Grid.Row="0" Grid.Column="1" TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
 
-                        <Label Text="Synced photos" Grid.Row="1" TextColor="#222" />
-                        <Label Text="{Binding SyncedCount}" Grid.Row="1" Grid.Column="1" TextColor="#666" />
+                        <Label Text="Synced photos" Grid.Row="1" />
+                        <Label Text="{Binding SyncedCount}" Grid.Row="1" Grid.Column="1" TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
 
-                        <Label Text="Device photos (sample)" Grid.Row="2" TextColor="#222" />
-                        <Label Text="{Binding DeviceCount}" Grid.Row="2" Grid.Column="1" TextColor="#666" />
+                        <Label Text="Device photos (sample)" Grid.Row="2" />
+                        <Label Text="{Binding DeviceCount}" Grid.Row="2" Grid.Column="1" TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
 
-                        <Label Text="Database size" Grid.Row="3" TextColor="#222" />
-                        <Label Text="{Binding DatabaseSize}" Grid.Row="3" Grid.Column="1" TextColor="#666" />
+                        <Label Text="Database size" Grid.Row="3" />
+                        <Label Text="{Binding DatabaseSize}" Grid.Row="3" Grid.Column="1" TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
 
-                        <Label Text="Thumbnail cache" Grid.Row="4" TextColor="#222" />
-                        <Label Text="{Binding ThumbnailCacheSize}" Grid.Row="4" Grid.Column="1" TextColor="#666" />
+                        <Label Text="Thumbnail cache" Grid.Row="4" />
+                        <Label Text="{Binding ThumbnailCacheSize}" Grid.Row="4" Grid.Column="1" TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
                     </Grid>
 
                     <Label Text="{Binding Status}"
                            FontSize="12"
-                           TextColor="#999"
+                           TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                            IsVisible="{Binding HasStatus}" />
 
                     <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
@@ -164,49 +155,46 @@
             <Label Text="About"
                    FontSize="14"
                    FontAttributes="Bold"
-                   TextColor="#666"
+                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                    Margin="0,8,0,0" />
 
             <Border StrokeShape="RoundRectangle 12"
-                    Stroke="#E0E0E0"
                     Padding="0">
                 <VerticalStackLayout>
                     <Grid Padding="16" ColumnDefinitions="Auto,*,Auto">
                         <Label FontFamily="MaterialDesignIcons"
                                Text="{x:Static local:IconFont.HelpCircle}"
                                FontSize="24"
-                               TextColor="#666"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                                VerticalOptions="Center" />
                         <Label Grid.Column="1"
                                Text="Help &amp; Feedback"
                                FontSize="16"
-                               TextColor="#222"
                                VerticalOptions="Center"
                                Margin="12,0,0,0" />
                         <Label Grid.Column="2"
                                FontFamily="MaterialDesignIcons"
                                Text="{x:Static local:IconFont.ChevronRight}"
                                FontSize="24"
-                               TextColor="#999"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray400}, Dark={StaticResource Gray500}}"
                                VerticalOptions="Center" />
                     </Grid>
-                    <BoxView HeightRequest="1" Color="#E0E0E0" />
+                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray600}}" />
                     <Grid Padding="16" ColumnDefinitions="Auto,*,Auto">
                         <Label FontFamily="MaterialDesignIcons"
                                Text="{x:Static local:IconFont.InformationOutline}"
                                FontSize="24"
-                               TextColor="#666"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                                VerticalOptions="Center" />
                         <Label Grid.Column="1"
                                Text="About Lazy Photos"
                                FontSize="16"
-                               TextColor="#222"
                                VerticalOptions="Center"
                                Margin="12,0,0,0" />
                         <Label Grid.Column="2"
                                Text="{Binding AppVersion}"
                                FontSize="14"
-                               TextColor="#999"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                                VerticalOptions="Center" />
                     </Grid>
                 </VerticalStackLayout>

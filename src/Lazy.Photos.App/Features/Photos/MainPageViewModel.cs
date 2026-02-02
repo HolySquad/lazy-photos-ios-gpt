@@ -1,49 +1,45 @@
-using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Lazy.Photos.App.Features.Photos.Models;
 using Lazy.Photos.App.Features.Photos.Services;
-using System.Linq;
-using System.Threading;
-using Microsoft.Maui.ApplicationModel;
-using MauiPermissions = Microsoft.Maui.ApplicationModel.Permissions;
-#if ANDROID
-using Lazy.Photos.App.Features.Photos.Permissions;
-#endif
+using Lazy.Photos.App.Features.Photos.UseCases;
 
 namespace Lazy.Photos.App.Features.Photos;
 
+/// <summary>
+/// ViewModel for the main photos page.
+///
+/// SOLID Principles Applied:
+/// - Single Responsibility: Only handles UI state and user interactions, delegates business logic to use cases
+/// - Open/Closed: Extended through new use cases without modifying this class
+/// - Liskov Substitution: All dependencies are interfaces that can be substituted
+/// - Interface Segregation: Uses focused interfaces for each concern
+/// - Dependency Inversion: Depends on abstractions, not concrete implementations
+///
+/// Clean Architecture:
+/// - This is the Presentation Layer (ViewModel)
+/// - Depends on Application Layer (Use Cases) and Domain Layer (Models)
+/// - Business logic is in Use Cases and Services
+/// </summary>
 public partial class MainPageViewModel : ObservableObject
 {
-	private readonly IPhotoLibraryService _photoLibraryService;
 	private readonly IPhotoNavigationService _photoNavigationService;
-	private readonly IPhotoSyncService _photoSyncService;
-	private readonly IPhotoCacheService _photoCacheService;
-	private readonly object _indexLock = new();
+	private readonly IPhotoStateRepository _photoStateRepository;
+	private readonly IPhotoSectionBuilder _sectionBuilder;
+	private readonly IThumbnailService _thumbnailService;
+	private readonly IPaginationManager _paginationManager;
+	private readonly ILoadPhotosUseCase _loadPhotosUseCase;
+	private readonly ICachePersistenceUseCase _cachePersistenceUseCase;
+
+	private readonly SemaphoreSlim _pageLoadSemaphore = new(1);
 	private CancellationTokenSource? _loadCts;
 	private CancellationTokenSource? _scrollQuietCts;
-	private CancellationTokenSource? _persistDebounceCts;
-	private CancellationTokenSource? _thumbnailFillCts;
-	private readonly SemaphoreSlim _thumbnailSemaphore = new(1);
-	private readonly SemaphoreSlim _devicePageSemaphore = new(1);
-	private readonly SemaphoreSlim _pageLoadSemaphore = new(1);
-	private readonly Dictionary<string, PhotoItem> _photoIndex = new(StringComparer.OrdinalIgnoreCase);
-	private readonly List<PhotoItem> _orderedPhotos = new();
-	private IAsyncEnumerator<PhotoItem>? _deviceEnumerator;
-	private bool _deviceEnumerationComplete;
-	private bool _deviceAccessGranted;
-	private int _displayCount;
-	private string? _remoteCursor;
-	private bool _remoteHasMore = true;
-	private bool _loadedOnce;
+
 	private volatile bool _isScrolling;
 	private volatile int _visibleStartIndex;
 	private volatile int _visibleEndIndex;
-	private readonly ConcurrentDictionary<string, byte> _lowQualityThumbs = new(StringComparer.OrdinalIgnoreCase);
-	private const int PageSize = 30;
-	private const int ScrollLoadThreshold = 8;
-	private const int PersistDebounceMs = 750;
+	private bool _loadedOnce;
 
 	[ObservableProperty]
 	private ObservableCollection<PhotoItem> photos = new();
@@ -70,42 +66,36 @@ public partial class MainPageViewModel : ObservableObject
 	private double cellSize = 120;
 
 	public MainPageViewModel(
-		IPhotoLibraryService photoLibraryService,
 		IPhotoNavigationService photoNavigationService,
-		IPhotoSyncService photoSyncService,
-		IPhotoCacheService photoCacheService)
+		IPhotoStateRepository photoStateRepository,
+		IPhotoSectionBuilder sectionBuilder,
+		IThumbnailService thumbnailService,
+		IPaginationManager paginationManager,
+		ILoadPhotosUseCase loadPhotosUseCase,
+		ICachePersistenceUseCase cachePersistenceUseCase)
 	{
-		_photoLibraryService = photoLibraryService;
 		_photoNavigationService = photoNavigationService;
-		_photoSyncService = photoSyncService;
-		_photoCacheService = photoCacheService;
+		_photoStateRepository = photoStateRepository;
+		_sectionBuilder = sectionBuilder;
+		_thumbnailService = thumbnailService;
+		_paginationManager = paginationManager;
+		_loadPhotosUseCase = loadPhotosUseCase;
+		_cachePersistenceUseCase = cachePersistenceUseCase;
 	}
 
+	/// <summary>
+	/// Notifies the ViewModel of scroll position changes for thumbnail optimization and infinite scroll.
+	/// </summary>
 	public void NotifyScrolled(int firstVisibleIndex, int lastVisibleIndex)
 	{
 		_isScrolling = true;
 		_visibleStartIndex = Math.Max(0, firstVisibleIndex);
 		_visibleEndIndex = Math.Max(_visibleStartIndex, lastVisibleIndex);
-		_scrollQuietCts?.Cancel();
-		_scrollQuietCts = new CancellationTokenSource();
-		_ = ResetScrollQuietAsync(_scrollQuietCts.Token);
 
-		if (_displayCount > 0 && lastVisibleIndex >= Math.Max(0, _displayCount - ScrollLoadThreshold))
+		ResetScrollQuietTimer();
+
+		if (_paginationManager.ShouldLoadMore(lastVisibleIndex, _photoStateRepository.DisplayCount))
 			_ = LoadNextPageAsync();
-	}
-
-	private async Task ResetScrollQuietAsync(CancellationToken ct)
-	{
-		try
-		{
-			await Task.Delay(250, ct).ConfigureAwait(false);
-			_isScrolling = false;
-			await UpgradeVisibleThumbnailsAsync(ct).ConfigureAwait(false);
-		}
-		catch (OperationCanceledException)
-		{
-			// Ignore; scrolling continued.
-		}
 	}
 
 	partial void OnErrorMessageChanged(string? value)
@@ -113,6 +103,9 @@ public partial class MainPageViewModel : ObservableObject
 		HasError = !string.IsNullOrWhiteSpace(value);
 	}
 
+	/// <summary>
+	/// Ensures photos are loaded at least once.
+	/// </summary>
 	public async Task EnsureLoadedAsync()
 	{
 		if (_loadedOnce)
@@ -122,6 +115,9 @@ public partial class MainPageViewModel : ObservableObject
 		await RefreshAsync();
 	}
 
+	/// <summary>
+	/// Updates the grid layout configuration.
+	/// </summary>
 	public void UpdateGrid(int newColumns, double newCellSize)
 	{
 		if (Columns != newColumns)
@@ -141,48 +137,43 @@ public partial class MainPageViewModel : ObservableObject
 		IsInitializing = true;
 		ErrorMessage = null;
 
-		_loadCts?.Cancel();
+		CancelCurrentLoad();
 		_loadCts = new CancellationTokenSource();
-
-		await ResetPagingStateAsync();
 
 		try
 		{
-			var cached = await _photoCacheService.GetCachedPhotosAsync(_loadCts.Token);
+			var result = await _loadPhotosUseCase.ExecuteAsync(_loadCts.Token);
 
-			await MainThread.InvokeOnMainThreadAsync(() => InitializeFromCache(cached));
-			_ = StartThumbnailFillAsync(Photos, _loadCts.Token);
-
-			_deviceAccessGranted = await EnsurePhotosPermissionAsync();
-			if (!_deviceAccessGranted)
-			{
-				ErrorMessage = "Showing cloud photos. Photo permission is required to show device photos.";
-				_deviceEnumerationComplete = true;
-			}
-
-			var remoteTask = TryLoadRemotePageAsync(_remoteCursor, _loadCts.Token);
-			var deviceTask = FetchDevicePageAsync(PageSize, _loadCts.Token);
-			await Task.WhenAll(remoteTask, deviceTask);
-
-			var remotePage = remoteTask.Result;
-			UpdateRemotePagingState(remotePage);
-			var merged = MergeAndSort(remotePage.Items, deviceTask.Result);
-			EnsureDisplayCountInitialized(merged.Count);
-			var displayItems = BuildDisplaySnapshot();
-
+			// Apply cached photos immediately
 			await MainThread.InvokeOnMainThreadAsync(() =>
 			{
-				ApplySnapshot(displayItems);
-				RebuildSectionsFromOrdered();
+				ApplySnapshot(result.CachedPhotos);
+				_sectionBuilder.RebuildSections(Photos, PhotoSections);
 			});
 
-			QueuePersistCache(merged, _loadCts.Token);
-			_ = StartThumbnailFillAsync(Photos, _loadCts.Token);
+			// Start thumbnail fill for cached photos
+			StartThumbnailFill();
+
+			// Set error message if device access was denied
+			if (!string.IsNullOrEmpty(result.ErrorMessage))
+				ErrorMessage = result.ErrorMessage;
+
+			// Apply merged results
+			await MainThread.InvokeOnMainThreadAsync(() =>
+			{
+				ApplySnapshot(result.DisplayPhotos);
+				_sectionBuilder.RebuildSections(Photos, PhotoSections);
+			});
+
+			// Queue cache persistence and start thumbnail fill
+			_cachePersistenceUseCase.QueuePersist(result.MergedPhotos, _loadCts.Token);
+			StartThumbnailFill();
+
 			IsInitializing = false;
 		}
 		catch (OperationCanceledException)
 		{
-			// Ignore cancellation.
+			// Ignore cancellation
 		}
 		catch (Exception ex)
 		{
@@ -195,57 +186,6 @@ public partial class MainPageViewModel : ObservableObject
 		}
 	}
 
-	private void RebuildSectionsFromOrdered()
-	{
-		PhotoSections.Clear();
-		if (Photos.Count == 0)
-			return;
-
-		var currentDate = GetLocalDate(Photos[0].TakenAt);
-		var currentSection = new PhotoSection(FormatSectionTitle(currentDate), Array.Empty<PhotoItem>());
-		PhotoSections.Add(currentSection);
-
-		foreach (var photo in Photos)
-		{
-			var photoDate = GetLocalDate(photo.TakenAt);
-			if (photoDate != currentDate)
-			{
-				currentDate = photoDate;
-				currentSection = new PhotoSection(FormatSectionTitle(currentDate), Array.Empty<PhotoItem>());
-				PhotoSections.Add(currentSection);
-			}
-			currentSection.Add(photo);
-		}
-	}
-
-	private void AppendSectionsFromRange(int startIndex, int endIndexExclusive)
-	{
-		if (Photos.Count == 0 || startIndex >= endIndexExclusive)
-			return;
-
-		if (startIndex <= 0 || PhotoSections.Count == 0)
-		{
-			RebuildSectionsFromOrdered();
-			return;
-		}
-
-		var currentDate = GetLocalDate(Photos[startIndex - 1].TakenAt);
-		var currentSection = PhotoSections[^1];
-
-		for (var i = startIndex; i < endIndexExclusive; i++)
-		{
-			var photoDate = GetLocalDate(Photos[i].TakenAt);
-			if (photoDate != currentDate)
-			{
-				currentDate = photoDate;
-				currentSection = new PhotoSection(FormatSectionTitle(currentDate), Array.Empty<PhotoItem>());
-				PhotoSections.Add(currentSection);
-			}
-
-			currentSection.Add(Photos[i]);
-		}
-	}
-
 	[RelayCommand]
 	private async Task OpenPhotoAsync(PhotoItem? photo)
 	{
@@ -253,421 +193,6 @@ public partial class MainPageViewModel : ObservableObject
 			return;
 
 		await _photoNavigationService.ShowPhotoAsync(photo);
-	}
-
-	private static async Task<bool> EnsurePhotosPermissionAsync()
-	{
-#if ANDROID
-		PermissionStatus status;
-		if (OperatingSystem.IsAndroidVersionAtLeast(33))
-		{
-			status = await MauiPermissions.CheckStatusAsync<ReadMediaImagesPermission>();
-			if (status != PermissionStatus.Granted)
-				status = await MauiPermissions.RequestAsync<ReadMediaImagesPermission>();
-		}
-		else
-		{
-			status = await MauiPermissions.CheckStatusAsync<ReadExternalStoragePermission>();
-			if (status != PermissionStatus.Granted)
-				status = await MauiPermissions.RequestAsync<ReadExternalStoragePermission>();
-		}
-#else
-		var status = await MauiPermissions.CheckStatusAsync<MauiPermissions.Photos>();
-		if (status != PermissionStatus.Granted)
-			status = await MauiPermissions.RequestAsync<MauiPermissions.Photos>();
-#endif
-		return status == PermissionStatus.Granted;
-	}
-
-	private async Task<PhotoPage> TryLoadRemotePageAsync(string? cursor, CancellationToken ct)
-	{
-		try
-		{
-			return await _photoSyncService.GetPageAsync(cursor, PageSize, ct);
-		}
-		catch (OperationCanceledException)
-		{
-			throw;
-		}
-		catch
-		{
-			return new PhotoPage(Array.Empty<PhotoItem>(), cursor, false);
-		}
-	}
-
-	private async Task<List<PhotoItem>> FetchDevicePageAsync(int pageSize, CancellationToken ct)
-	{
-		if (pageSize <= 0 || _deviceEnumerationComplete || !_deviceAccessGranted)
-			return new List<PhotoItem>();
-
-		await _devicePageSemaphore.WaitAsync(ct).ConfigureAwait(false);
-		try
-		{
-			if (_deviceEnumerationComplete || !_deviceAccessGranted)
-				return new List<PhotoItem>();
-
-			_deviceEnumerator ??= _photoLibraryService.StreamRecentPhotosAsync(int.MaxValue, ct).GetAsyncEnumerator(ct);
-
-			var page = new List<PhotoItem>(pageSize);
-			while (page.Count < pageSize && !ct.IsCancellationRequested)
-			{
-				if (_deviceEnumerator == null)
-					break;
-
-				if (!await _deviceEnumerator.MoveNextAsync().ConfigureAwait(false))
-				{
-					_deviceEnumerationComplete = true;
-					break;
-				}
-
-				page.Add(_deviceEnumerator.Current);
-			}
-
-			return page;
-		}
-		catch (OperationCanceledException)
-		{
-			throw;
-		}
-		catch
-		{
-			_deviceEnumerationComplete = true;
-			return new List<PhotoItem>();
-		}
-		finally
-		{
-			_devicePageSemaphore.Release();
-		}
-	}
-
-	private void UpdateRemotePagingState(PhotoPage page)
-	{
-		_remoteCursor = page.Cursor;
-		_remoteHasMore = page.HasMore;
-		if (page.Items.Count == 0 && !page.HasMore)
-			_remoteHasMore = false;
-	}
-
-	private Task StartHashFillAsync(IEnumerable<PhotoItem> photosToHash, CancellationToken ct)
-	{
-		var snapshot = photosToHash is List<PhotoItem> list ? list : photosToHash.ToList();
-		return Task.Run(async () =>
-		{
-			foreach (var photo in snapshot)
-			{
-				if (!string.IsNullOrWhiteSpace(photo.Hash))
-					continue;
-
-				if (ct.IsCancellationRequested)
-					break;
-
-				try
-				{
-					var hash = await _photoLibraryService.ComputeHashAsync(photo, ct).ConfigureAwait(false);
-					if (!string.IsNullOrWhiteSpace(hash))
-					{
-						photo.Hash = hash;
-						UpdateKeyForHashedPhoto(photo);
-					}
-				}
-				catch (OperationCanceledException)
-				{
-					break;
-				}
-				catch
-				{
-					// Ignore hash failures to keep UI responsive.
-				}
-			}
-		}, ct);
-	}
-
-	private Task StartThumbnailFillAsync(IEnumerable<PhotoItem> photosToFill, CancellationToken ct)
-	{
-		_thumbnailFillCts?.Cancel();
-		_thumbnailFillCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-		var linkedCt = _thumbnailFillCts.Token;
-		var snapshot = photosToFill is List<PhotoItem> list ? list : photosToFill.ToList();
-
-		return Task.Run(async () =>
-		{
-			var allItems = snapshot;
-			var missing = new List<PhotoItem>();
-			for (var i = 0; i < allItems.Count; i++)
-			{
-				var item = allItems[i];
-				if (item.Thumbnail == null)
-					missing.Add(item);
-			}
-
-			if (missing.Count == 0)
-			{
-				QueuePersistCache(BuildOrderedSnapshot(), linkedCt);
-				return;
-			}
-
-			var prioritized = BuildPriorityList(missing);
-			var firstCount = Math.Min(30, prioritized.Count);
-			var firstScreen = prioritized.GetRange(0, firstCount);
-			var remaining = firstCount < prioritized.Count
-				? prioritized.GetRange(firstCount, prioritized.Count - firstCount)
-				: new List<PhotoItem>();
-
-			await ProcessThumbnailBatchAsync(firstScreen, linkedCt).ConfigureAwait(false);
-			await Task.Delay(50, linkedCt).ConfigureAwait(false);
-			await ProcessThumbnailBatchAsync(remaining, linkedCt).ConfigureAwait(false);
-			QueuePersistCache(BuildOrderedSnapshot(), linkedCt);
-		}, linkedCt);
-	}
-
-	private List<PhotoItem> BuildPriorityList(List<PhotoItem> all)
-	{
-		if (all.Count == 0)
-			return all;
-
-		const int window = 24;
-		const int lead = 8;
-		var start = Math.Max(0, _visibleStartIndex - lead);
-		var end = Math.Min(all.Count, start + window);
-
-		var prioritized = new List<PhotoItem>(all.Count);
-		var seen = new HashSet<PhotoItem>();
-
-		for (var i = start; i < end; i++)
-		{
-			var item = all[i];
-			prioritized.Add(item);
-			seen.Add(item);
-		}
-
-		for (var i = 0; i < all.Count; i++)
-		{
-			var item = all[i];
-			if (!seen.Contains(item))
-				prioritized.Add(item);
-		}
-
-		return prioritized;
-	}
-
-	private async Task ProcessThumbnailBatchAsync(IEnumerable<PhotoItem> batch, CancellationToken ct)
-	{
-		const int chunkSize = 6;
-		const int applyBatchSize = 10;
-		int processedInChunk = 0;
-		var pendingApply = new List<(PhotoItem photo, ImageSource thumb)>();
-
-		foreach (var photo in batch)
-		{
-			if (ct.IsCancellationRequested)
-				break;
-
-			while (_isScrolling && !ct.IsCancellationRequested)
-				await Task.Delay(50, ct).ConfigureAwait(false);
-
-			try
-			{
-				await _thumbnailSemaphore.WaitAsync(ct).ConfigureAwait(false);
-				if (ShouldThrottleMemory())
-				{
-					_thumbnailSemaphore.Release();
-					await Task.Delay(100, ct).ConfigureAwait(false);
-					continue;
-				}
-
-				var isLowQuality = _isScrolling;
-				var thumb = await _photoLibraryService.BuildThumbnailAsync(photo, isLowQuality, ct).ConfigureAwait(false);
-				if (thumb != null)
-				{
-					var key = EnsureKey(photo);
-					if (isLowQuality)
-						_lowQualityThumbs[key] = 0;
-					else
-						_lowQualityThumbs.TryRemove(key, out _);
-
-					pendingApply.Add((photo, thumb));
-					if (pendingApply.Count >= applyBatchSize)
-					{
-						await MainThread.InvokeOnMainThreadAsync(() =>
-						{
-							foreach (var (p, t) in pendingApply)
-								p.Thumbnail = t;
-							pendingApply.Clear();
-						});
-					}
-				}
-			}
-			catch (OperationCanceledException)
-			{
-				break;
-			}
-			catch
-			{
-				// Ignore thumbnail failures.
-			}
-			finally
-			{
-				_thumbnailSemaphore.Release();
-			}
-
-			processedInChunk++;
-			if (processedInChunk >= chunkSize)
-			{
-				processedInChunk = 0;
-				await Task.Delay(50, ct).ConfigureAwait(false);
-			}
-		}
-
-		if (pendingApply.Count > 0 && !ct.IsCancellationRequested)
-		{
-			await MainThread.InvokeOnMainThreadAsync(() =>
-			{
-				foreach (var (p, t) in pendingApply)
-					p.Thumbnail = t;
-				pendingApply.Clear();
-			});
-		}
-	}
-
-	private async Task UpgradeVisibleThumbnailsAsync(CancellationToken ct)
-	{
-		if (_lowQualityThumbs.IsEmpty || Photos.Count == 0)
-			return;
-
-		var visibleItems = new List<PhotoItem>();
-		await MainThread.InvokeOnMainThreadAsync(() =>
-		{
-			if (Photos.Count == 0)
-				return;
-
-			var start = Math.Max(0, Math.Min(_visibleStartIndex, Photos.Count - 1));
-			var end = Math.Max(start, Math.Min(_visibleEndIndex, Photos.Count - 1));
-			for (var i = start; i <= end; i++)
-				visibleItems.Add(Photos[i]);
-		});
-
-		if (visibleItems.Count == 0)
-			return;
-
-		foreach (var photo in visibleItems)
-		{
-			if (ct.IsCancellationRequested)
-				break;
-
-			var key = EnsureKey(photo);
-			if (!_lowQualityThumbs.ContainsKey(key))
-				continue;
-
-			try
-			{
-				var thumb = await _photoLibraryService.BuildThumbnailAsync(photo, lowQuality: false, ct).ConfigureAwait(false);
-				if (thumb != null)
-				{
-					await MainThread.InvokeOnMainThreadAsync(() => photo.Thumbnail = thumb);
-					_lowQualityThumbs.TryRemove(key, out _);
-				}
-			}
-			catch
-			{
-				// best-effort; continue
-			}
-		}
-	}
-
-	private void InitializeFromCache(IReadOnlyList<PhotoItem> items)
-	{
-		var ordered = new List<PhotoItem>(items.Count);
-		lock (_indexLock)
-		{
-			_photoIndex.Clear();
-			_orderedPhotos.Clear();
-
-			foreach (var item in items)
-			{
-				var key = EnsureKey(item);
-				if (_photoIndex.ContainsKey(key))
-					continue;
-
-				_photoIndex[key] = item;
-				ordered.Add(item);
-			}
-
-			_orderedPhotos.AddRange(ordered);
-		}
-
-		_displayCount = Math.Min(PageSize, ordered.Count);
-		ApplySnapshot(BuildDisplaySnapshot());
-
-		RebuildSectionsFromOrdered();
-	}
-
-	private IReadOnlyList<PhotoItem> MergeAndSort(params IEnumerable<PhotoItem>[] newItemSets)
-	{
-		var added = false;
-		List<PhotoItem>? mergedSnapshot = null;
-		lock (_indexLock)
-		{
-			foreach (var set in newItemSets)
-			{
-				foreach (var item in set)
-				{
-					var key = EnsureKey(item);
-					if (_photoIndex.ContainsKey(key))
-						continue;
-
-					_photoIndex[key] = item;
-					added = true;
-				}
-			}
-
-			if (!added && _orderedPhotos.Count > 0)
-				return _orderedPhotos;
-
-			mergedSnapshot = _photoIndex.Values.ToList();
-		}
-
-		mergedSnapshot = mergedSnapshot
-			.OrderByDescending(p => p.TakenAt ?? DateTimeOffset.MinValue)
-			.ThenByDescending(p => p.DisplayName)
-			.ToList();
-
-		lock (_indexLock)
-		{
-			_orderedPhotos.Clear();
-			_orderedPhotos.AddRange(mergedSnapshot);
-		}
-
-		return mergedSnapshot;
-	}
-
-	private void EnsureDisplayCountInitialized(int totalCount)
-	{
-		if (_displayCount == 0 && totalCount > 0)
-			_displayCount = Math.Min(PageSize, totalCount);
-	}
-
-	private List<PhotoItem> BuildDisplaySnapshot()
-	{
-		lock (_indexLock)
-		{
-			var count = Math.Min(_displayCount, _orderedPhotos.Count);
-			var displayItems = new List<PhotoItem>(count);
-			for (var i = 0; i < count; i++)
-				displayItems.Add(_orderedPhotos[i]);
-			return displayItems;
-		}
-	}
-
-	private List<PhotoItem> BuildOrderedSnapshot()
-	{
-		lock (_indexLock)
-			return _orderedPhotos.ToList();
-	}
-
-	private int GetOrderedCount()
-	{
-		lock (_indexLock)
-			return _orderedPhotos.Count;
 	}
 
 	private async Task LoadNextPageAsync()
@@ -684,53 +209,29 @@ public partial class MainPageViewModel : ObservableObject
 			if (ct.IsCancellationRequested)
 				return;
 
-			var targetCount = _displayCount + PageSize;
-			IReadOnlyList<PhotoItem>? merged = null;
+			var targetCount = _photoStateRepository.DisplayCount + _paginationManager.PageSize;
+			var result = await _loadPhotosUseCase.LoadNextPageAsync(targetCount, ct);
 
-			if (targetCount > GetOrderedCount() && _remoteHasMore)
-			{
-				var remotePage = await TryLoadRemotePageAsync(_remoteCursor, ct).ConfigureAwait(false);
-				UpdateRemotePagingState(remotePage);
-				if (remotePage.Items.Count > 0)
-				{
-					merged = MergeAndSort(remotePage.Items);
-					QueuePersistCache(merged, ct);
-				}
-			}
-
-			if (targetCount > GetOrderedCount() && !_deviceEnumerationComplete)
-			{
-				var devicePage = await FetchDevicePageAsync(PageSize, ct).ConfigureAwait(false);
-				if (devicePage.Count > 0)
-				{
-					merged = MergeAndSort(devicePage);
-					QueuePersistCache(merged, ct);
-				}
-			}
-
-			var totalCount = GetOrderedCount();
-			var nextCount = Math.Min(targetCount, totalCount);
-			if (nextCount <= _displayCount)
+			if (!result.HasChanges)
 				return;
-
-			var previousCount = _displayCount;
-			_displayCount = nextCount;
-			var displayItems = BuildDisplaySnapshot();
 
 			await MainThread.InvokeOnMainThreadAsync(() =>
 			{
-				ApplySnapshot(displayItems);
-				if (previousCount <= 0 || PhotoSections.Count == 0)
-					RebuildSectionsFromOrdered();
+				ApplySnapshot(result.DisplayPhotos);
+
+				if (result.PreviousDisplayCount <= 0 || PhotoSections.Count == 0)
+					_sectionBuilder.RebuildSections(Photos, PhotoSections);
 				else
-					AppendSectionsFromRange(previousCount, displayItems.Count);
+					_sectionBuilder.AppendSections(Photos, PhotoSections, result.PreviousDisplayCount, result.DisplayPhotos.Count);
 			});
 
-			_ = StartThumbnailFillAsync(Photos, ct);
+			// Queue cache persistence and start thumbnail fill
+			_cachePersistenceUseCase.QueuePersist(_photoStateRepository.BuildOrderedSnapshot(), ct);
+			StartThumbnailFill();
 		}
 		catch (OperationCanceledException)
 		{
-			// Ignore cancellation.
+			// Ignore cancellation
 		}
 		finally
 		{
@@ -738,48 +239,51 @@ public partial class MainPageViewModel : ObservableObject
 		}
 	}
 
-	private string EnsureKey(PhotoItem item)
+	private void ResetScrollQuietTimer()
 	{
-		if (!string.IsNullOrWhiteSpace(item.UniqueKey))
-			return item.UniqueKey;
-
-		var key = ComputeKey(item);
-		item.UniqueKey = key;
-		return key;
+		_scrollQuietCts?.Cancel();
+		_scrollQuietCts = new CancellationTokenSource();
+		_ = HandleScrollQuietAsync(_scrollQuietCts.Token);
 	}
 
-	private static string ComputeKey(PhotoItem item)
+	private async Task HandleScrollQuietAsync(CancellationToken ct)
 	{
-		if (!string.IsNullOrWhiteSpace(item.Hash))
-			return $"hash:{item.Hash}";
+		try
+		{
+			await Task.Delay(250, ct).ConfigureAwait(false);
+			_isScrolling = false;
 
-		if (!string.IsNullOrWhiteSpace(item.Id))
-			return $"id:{item.Id}";
-
-		return $"fallback:{item.DisplayName}:{item.TakenAt?.UtcDateTime:o}";
+			var visiblePhotos = await MainThread.InvokeOnMainThreadAsync(() => Photos.ToList());
+			await _thumbnailService.UpgradeVisibleThumbnailsAsync(
+				visiblePhotos,
+				_visibleStartIndex,
+				_visibleEndIndex,
+				ct);
+		}
+		catch (OperationCanceledException)
+		{
+			// Scrolling continued
+		}
 	}
 
-	private void UpdateKeyForHashedPhoto(PhotoItem photo)
+	private void StartThumbnailFill()
 	{
-		var newKey = ComputeKey(photo);
-		if (string.Equals(photo.UniqueKey, newKey, StringComparison.OrdinalIgnoreCase))
+		if (_loadCts == null)
 			return;
 
-		var oldKey = photo.UniqueKey;
-		photo.UniqueKey = newKey;
+		_ = _thumbnailService.StartThumbnailFillAsync(
+			Photos,
+			_visibleStartIndex,
+			_visibleEndIndex,
+			() => _isScrolling,
+			_loadCts.Token);
+	}
 
-		lock (_indexLock)
-		{
-			if (!string.IsNullOrWhiteSpace(oldKey) &&
-				_photoIndex.TryGetValue(oldKey, out var existing) &&
-				ReferenceEquals(existing, photo))
-			{
-				_photoIndex.Remove(oldKey);
-			}
-
-			if (!_photoIndex.ContainsKey(newKey))
-				_photoIndex[newKey] = photo;
-		}
+	private void CancelCurrentLoad()
+	{
+		_loadCts?.Cancel();
+		_thumbnailService.CancelPendingOperations();
+		_cachePersistenceUseCase.CancelPending();
 	}
 
 	private void ApplySnapshot(IReadOnlyList<PhotoItem> items)
@@ -812,119 +316,5 @@ public partial class MainPageViewModel : ObservableObject
 			if (!ReferenceEquals(Photos[i], items[i]))
 				Photos[i] = items[i];
 		}
-	}
-
-	private async Task PersistCacheAsync(IReadOnlyList<PhotoItem> items, CancellationToken ct)
-	{
-		try
-		{
-			// Work off the UI thread with an immutable snapshot to avoid locking UI.
-			var snapshot = new List<PhotoItem>(items.Count);
-			for (var i = 0; i < items.Count; i++)
-				snapshot.Add(CloneForCache(items[i]));
-
-			await _photoCacheService.SavePhotosAsync(snapshot, ct).ConfigureAwait(false);
-		}
-		catch
-		{
-			// Best-effort cache persistence; ignore failures to keep UI responsive.
-		}
-	}
-
-	private static PhotoItem CloneForCache(PhotoItem item)
-	{
-		return new PhotoItem
-		{
-			Id = item.Id,
-			DisplayName = item.DisplayName,
-			TakenAt = item.TakenAt,
-			Hash = item.Hash,
-			FolderName = item.FolderName,
-			IsSynced = item.IsSynced,
-			Thumbnail = item.Thumbnail,
-			FullImage = item.FullImage
-		};
-	}
-
-	private async Task ResetPagingStateAsync()
-	{
-		_displayCount = 0;
-		_deviceEnumerationComplete = false;
-		_deviceAccessGranted = false;
-		_remoteCursor = null;
-		_remoteHasMore = true;
-
-		if (_deviceEnumerator != null)
-		{
-			try
-			{
-				await _deviceEnumerator.DisposeAsync().ConfigureAwait(false);
-			}
-			catch
-			{
-				// Best-effort cleanup.
-			}
-			finally
-			{
-				_deviceEnumerator = null;
-			}
-		}
-	}
-
-	private void QueuePersistCache(IReadOnlyList<PhotoItem> items, CancellationToken ct)
-	{
-		_persistDebounceCts?.Cancel();
-		var debounceCts = new CancellationTokenSource();
-		_persistDebounceCts = debounceCts;
-
-		_ = Task.Run(async () =>
-		{
-			try
-			{
-				await Task.Delay(PersistDebounceMs, debounceCts.Token).ConfigureAwait(false);
-				await PersistCacheAsync(items, ct).ConfigureAwait(false);
-			}
-			catch (OperationCanceledException)
-			{
-				// Debounced.
-			}
-		}, CancellationToken.None);
-	}
-
-	private static bool ShouldThrottleMemory()
-	{
-#if ANDROID
-		try
-		{
-			var runtime = Java.Lang.Runtime.GetRuntime();
-			var free = runtime.FreeMemory();
-			var total = runtime.TotalMemory();
-			var max = runtime.MaxMemory();
-			var available = max - (total - free);
-			// Pause thumbnail generation if less than ~32 MB free to avoid GC spikes.
-			return available < 32 * 1024 * 1024;
-		}
-		catch
-		{
-			return false;
-		}
-#else
-		return false;
-#endif
-	}
-
-	private static DateTime GetLocalDate(DateTimeOffset? takenAt)
-	{
-		return (takenAt ?? DateTimeOffset.Now).ToLocalTime().Date;
-	}
-
-	private static string FormatSectionTitle(DateTime date)
-	{
-		var today = DateTime.Now.Date;
-		if (date == today)
-			return "Today";
-		if (date == today.AddDays(-1))
-			return "Yesterday";
-		return date.ToString("ddd, MMM d");
 	}
 }

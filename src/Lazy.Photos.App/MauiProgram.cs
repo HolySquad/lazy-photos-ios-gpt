@@ -1,10 +1,11 @@
 ﻿using CommunityToolkit.Maui;
+using Lazy.Photos.App.Features.Albums;
 using Lazy.Photos.App.Features.Photos;
 using Lazy.Photos.App.Features.Photos.Services;
 using Lazy.Photos.App.Features.Photos.UseCases;
+using Lazy.Photos.App.Features.Settings;
 using Lazy.Photos.App.Features.SignIn;
 using Lazy.Photos.App.Features.SignIn.Services;
-using Lazy.Photos.App.Features.DevStats;
 using Lazy.Photos.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Storage;
@@ -23,6 +24,7 @@ public static class MauiProgram
 			{
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+				fonts.AddFont("materialdesignicons-webfont.ttf", "MaterialDesignIcons");
 			});
 
 		builder.Services.AddSingleton<IPhotoLibraryService, PhotoLibraryService>();
@@ -38,8 +40,12 @@ public static class MauiProgram
 			var dbPath = Path.Combine(FileSystem.AppDataDirectory, "photos-cache.db3");
 			return new PhotoCacheService(dbPath);
 		});
-		builder.Services.AddTransient<DevStatsViewModel>();
-		builder.Services.AddTransient<DevStatsPage>();
+		// Album Services (Mock - will be replaced with real API)
+		builder.Services.AddSingleton<IAlbumService, MockAlbumService>();
+		builder.Services.AddTransient<AlbumsViewModel>();
+		builder.Services.AddTransient<AlbumsPage>();
+		builder.Services.AddTransient<SettingsViewModel>();
+		builder.Services.AddTransient<SettingsPage>();
 		builder.Services.AddSingleton<IPhotoNavigationService, PhotoNavigationService>();
 
 		// SOLID Architecture Services

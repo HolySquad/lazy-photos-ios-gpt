@@ -4,36 +4,49 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:photos="clr-namespace:Lazy.Photos.App.Features.Photos"
+    xmlns:albums="clr-namespace:Lazy.Photos.App.Features.Albums"
     xmlns:search="clr-namespace:Lazy.Photos.App.Features.Search"
-    xmlns:dev="clr-namespace:Lazy.Photos.App.Features.DevStats"
+    xmlns:settings="clr-namespace:Lazy.Photos.App.Features.Settings"
+    xmlns:local="clr-namespace:Lazy.Photos.App"
     Title="Lazy Photos">
 
     <Shell.TitleView>
-        <Grid Padding="12,6"
-              ColumnDefinitions="Auto,*,Auto"
-              BackgroundColor="White"
-              HeightRequest="44"
-              MinimumHeightRequest="44"
-              HorizontalOptions="Fill"
-              VerticalOptions="Center">
-            <Button Text="≡"
-                    FontSize="20"
-                    TextColor="#222"
+        <Grid Padding="8,0"
+              ColumnDefinitions="44,*,44"
+              BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}"
+              VerticalOptions="Fill"
+              HorizontalOptions="Fill">
+            <Button FontSize="24"
+                    TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}"
                     BackgroundColor="Transparent"
-                    Command="{Binding ShowSignInCommand}" />
+                    Command="{Binding ShowSignInCommand}"
+                    FontFamily="MaterialDesignIcons"
+                    Text="{x:Static local:IconFont.Menu}"
+                    VerticalOptions="Center"
+                    HorizontalOptions="Center"
+                    Padding="0"
+                    WidthRequest="44"
+                    HeightRequest="44" />
             <Label Grid.Column="1"
                    Text="Lazy Photos"
                    HorizontalTextAlignment="Center"
                    VerticalTextAlignment="Center"
-                   FontSize="20"
+                   VerticalOptions="Center"
+                   FontSize="18"
                    FontAttributes="Bold"
-                   TextColor="#222" />
+                   TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}" />
             <Button Grid.Column="2"
-                    Text="○"
-                    FontSize="20"
-                    TextColor="#222"
+                    FontSize="24"
+                    TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}"
                     BackgroundColor="Transparent"
-                    Command="{Binding ShowSignInCommand}" />
+                    Command="{Binding ShowSignInCommand}"
+                    FontFamily="MaterialDesignIcons"
+                    Text="{x:Static local:IconFont.AccountCircle}"
+                    VerticalOptions="Center"
+                    HorizontalOptions="Center"
+                    Padding="0"
+                    WidthRequest="44"
+                    HeightRequest="44" />
         </Grid>
     </Shell.TitleView>
 
@@ -41,15 +54,43 @@
         <ShellContent
             Title="Photos"
             ContentTemplate="{DataTemplate photos:MainPage}"
-            Route="MainPage" />
+            Route="MainPage">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="MaterialDesignIcons"
+                                 Glyph="{x:Static local:IconFont.ImageMultiple}"
+                                 Color="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
+            </ShellContent.Icon>
+        </ShellContent>
+        <ShellContent
+            Title="Albums"
+            ContentTemplate="{DataTemplate albums:AlbumsPage}"
+            Route="AlbumsPage">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="MaterialDesignIcons"
+                                 Glyph="{x:Static local:IconFont.FolderMultipleImage}"
+                                 Color="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
+            </ShellContent.Icon>
+        </ShellContent>
         <ShellContent
             Title="Search"
             ContentTemplate="{DataTemplate search:SearchPage}"
-            Route="SearchPage" />
+            Route="SearchPage">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="MaterialDesignIcons"
+                                 Glyph="{x:Static local:IconFont.Magnify}"
+                                 Color="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
+            </ShellContent.Icon>
+        </ShellContent>
         <ShellContent
-            Title="DevStats"
-            ContentTemplate="{DataTemplate dev:DevStatsPage}"
-            Route="DevStatsPage" />
+            Title="Settings"
+            ContentTemplate="{DataTemplate settings:SettingsPage}"
+            Route="SettingsPage">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="MaterialDesignIcons"
+                                 Glyph="{x:Static local:IconFont.Cog}"
+                                 Color="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
+            </ShellContent.Icon>
+        </ShellContent>
     </TabBar>
 
 </Shell>

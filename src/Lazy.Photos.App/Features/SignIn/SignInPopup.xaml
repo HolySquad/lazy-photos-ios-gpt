@@ -2,6 +2,7 @@
 <toolkit:Popup xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+               xmlns:local="clr-namespace:Lazy.Photos.App"
                x:Class="Lazy.Photos.App.Features.SignIn.SignInPopup"
                CanBeDismissedByTappingOutsideOfPopup="True">
 
@@ -17,7 +18,9 @@
             <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
                   RowSpacing="14">
                 <Grid ColumnDefinitions="Auto,*,Auto">
-                    <Button Text="X"
+                    <Button FontFamily="MaterialDesignIcons"
+                            Text="{x:Static local:IconFont.Close}"
+                            FontSize="24"
                             BackgroundColor="Transparent"
                             TextColor="#222"
                             Command="{Binding CloseCommand}" />
@@ -38,19 +41,31 @@
                         HeightRequest="44"
                         Command="{Binding SignInCommand}" />
 
-                <Button Grid.Row="2"
-                        Text="Photos settings"
-                        BackgroundColor="Transparent"
-                        TextColor="#222"
-                        HorizontalOptions="Start"
-                        Command="{Binding OpenSettingsCommand}" />
+                <HorizontalStackLayout Grid.Row="2" Spacing="8">
+                    <Label FontFamily="MaterialDesignIcons"
+                           Text="{x:Static local:IconFont.Cog}"
+                           FontSize="20"
+                           TextColor="#222"
+                           VerticalOptions="Center" />
+                    <Button Text="Photos settings"
+                            BackgroundColor="Transparent"
+                            TextColor="#222"
+                            Padding="0"
+                            Command="{Binding OpenSettingsCommand}" />
+                </HorizontalStackLayout>
 
-                <Button Grid.Row="3"
-                        Text="Help &amp; feedback"
-                        BackgroundColor="Transparent"
-                        TextColor="#222"
-                        HorizontalOptions="Start"
-                        Command="{Binding OpenHelpCommand}" />
+                <HorizontalStackLayout Grid.Row="3" Spacing="8">
+                    <Label FontFamily="MaterialDesignIcons"
+                           Text="{x:Static local:IconFont.HelpCircle}"
+                           FontSize="20"
+                           TextColor="#222"
+                           VerticalOptions="Center" />
+                    <Button Text="Help &amp; feedback"
+                            BackgroundColor="Transparent"
+                            TextColor="#222"
+                            Padding="0"
+                            Command="{Binding OpenHelpCommand}" />
+                </HorizontalStackLayout>
 
                 <HorizontalStackLayout Grid.Row="4"
                                        Spacing="8"

@@ -14,11 +14,14 @@ public static class IconFont
     public const string Close = "\U000F0156";
     public const string Menu = "\U000F035C";
     public const string DotsVertical = "\U000F01D8";
+    public const string ChevronRight = "\U000F0142";
+    public const string Plus = "\U000F0415";
 
     // Tab Bar
     public const string ImageMultiple = "\U000F027C";
     public const string Magnify = "\U000F0349";
     public const string ChartBar = "\U000F018D";
+    public const string FolderMultipleImage = "\U000F10D3";
 
     // Actions
     public const string Share = "\U000F0497";
@@ -32,9 +35,14 @@ public static class IconFont
     public const string AccountCircle = "\U000F0009";
     public const string Cog = "\U000F0493";
     public const string HelpCircle = "\U000F02D7";
+    public const string InformationOutline = "\U000F02FD";
 
     // Photo related
     public const string Camera = "\U000F0100";
     public const string Image = "\U000F021F";
     public const string ImageSearch = "\U000F0977";
+
+    // Sync & Network
+    public const string CloudSync = "\U000F063F";
+    public const string Wifi = "\U000F05A9";
 }

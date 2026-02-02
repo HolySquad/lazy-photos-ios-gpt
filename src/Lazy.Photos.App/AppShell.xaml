@@ -4,8 +4,9 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:photos="clr-namespace:Lazy.Photos.App.Features.Photos"
+    xmlns:albums="clr-namespace:Lazy.Photos.App.Features.Albums"
     xmlns:search="clr-namespace:Lazy.Photos.App.Features.Search"
-    xmlns:dev="clr-namespace:Lazy.Photos.App.Features.DevStats"
+    xmlns:settings="clr-namespace:Lazy.Photos.App.Features.Settings"
     xmlns:local="clr-namespace:Lazy.Photos.App"
     Title="Lazy Photos">
 
@@ -52,6 +53,16 @@
             </ShellContent.Icon>
         </ShellContent>
         <ShellContent
+            Title="Albums"
+            ContentTemplate="{DataTemplate albums:AlbumsPage}"
+            Route="AlbumsPage">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="MaterialDesignIcons"
+                                 Glyph="{x:Static local:IconFont.FolderMultipleImage}"
+                                 Color="#222" />
+            </ShellContent.Icon>
+        </ShellContent>
+        <ShellContent
             Title="Search"
             ContentTemplate="{DataTemplate search:SearchPage}"
             Route="SearchPage">
@@ -62,12 +73,12 @@
             </ShellContent.Icon>
         </ShellContent>
         <ShellContent
-            Title="DevStats"
-            ContentTemplate="{DataTemplate dev:DevStatsPage}"
-            Route="DevStatsPage">
+            Title="Settings"
+            ContentTemplate="{DataTemplate settings:SettingsPage}"
+            Route="SettingsPage">
             <ShellContent.Icon>
                 <FontImageSource FontFamily="MaterialDesignIcons"
-                                 Glyph="{x:Static local:IconFont.ChartBar}"
+                                 Glyph="{x:Static local:IconFont.Cog}"
                                  Color="#222" />
             </ShellContent.Icon>
         </ShellContent>

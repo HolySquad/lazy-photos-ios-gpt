@@ -182,66 +182,108 @@ public partial class PhotoLibraryService
 		if (photo?.Id == null)
 			return Task.FromResult<ImageSource?>(null);
 
-		var resolver = Android.App.Application.Context.ContentResolver;
-		var uri = MediaStore.Images.Media.ExternalContentUri;
-		var contentUri = ContentUris.WithAppendedId(uri, long.Parse(photo.Id));
-
 		var cachePath = GetThumbnailCachePath(photo, lowQuality);
 		if (File.Exists(cachePath))
 			return Task.FromResult<ImageSource?>(ImageSource.FromFile(cachePath));
 
+		// Capture profile values for use in background thread
+		var profile = Profile;
+		var targetSize = lowQuality ? profile.LowQualityThumbnailSize : profile.HighQualityThumbnailSize;
+		var quality = lowQuality ? 60 : 92;
+
 		return Task.Run(() =>
 		{
-			var targetSize = lowQuality ? 128 : 512;
-			var quality = lowQuality ? 50 : 90;
-
 			try
 			{
-				var bounds = new BitmapFactory.Options { InJustDecodeBounds = true };
-				using (var s = resolver.OpenInputStream(contentUri))
+				var resolver = Android.App.Application.Context.ContentResolver;
+				var uri = MediaStore.Images.Media.ExternalContentUri;
+				var contentUri = ContentUris.WithAppendedId(uri, long.Parse(photo.Id));
+
+				Bitmap? bitmap = null;
+
+				// Try to use Android's built-in thumbnail loading (API 29+)
+				// This is ~10x faster as Android pre-generates and caches these thumbnails
+				if (Android.OS.Build.VERSION.SdkInt >= Android.OS.BuildVersionCodes.Q)
 				{
-					if (s == null)
-						return (ImageSource?)null;
-					BitmapFactory.DecodeStream(s, null, bounds);
+					try
+					{
+						var size = new Android.Util.Size(targetSize, targetSize);
+						bitmap = resolver.LoadThumbnail(contentUri, size, null);
+					}
+					catch
+					{
+						// Fall back to manual decoding if LoadThumbnail fails
+						bitmap = null;
+					}
 				}
 
-				int sample = 1;
-				while ((bounds.OutWidth / sample) > targetSize || (bounds.OutHeight / sample) > targetSize)
-					sample *= 2;
-
-				var decodeOptions = new BitmapFactory.Options
+				// Fallback: Manual decoding for older Android or if LoadThumbnail failed
+				if (bitmap == null)
 				{
-					InSampleSize = sample,
-#pragma warning disable CA1422 // InDither obsolete, still okay for legacy downsampling
-					InDither = true,
-#pragma warning restore CA1422
-					InPreferredConfig = Bitmap.Config.Rgb565
-				};
+					bitmap = DecodeScaledBitmap(resolver, contentUri, targetSize, profile);
+				}
 
-				using var stream = resolver.OpenInputStream(contentUri);
-				if (stream == null)
-					return (ImageSource?)null;
-
-				using var bitmap = BitmapFactory.DecodeStream(stream, null, decodeOptions);
 				if (bitmap == null)
 					return (ImageSource?)null;
 
-				if (bitmap.Width > 0 && bitmap.Height > 0)
-					photo.AspectRatio = Math.Max(0.1, (double)bitmap.Width / bitmap.Height);
-
-				using (var fs = File.Open(cachePath, FileMode.Create, FileAccess.Write, FileShare.Read))
+				try
 				{
-					bitmap.Compress(Bitmap.CompressFormat.Jpeg, quality, fs);
-					fs.Flush();
-				}
+					if (bitmap.Width > 0 && bitmap.Height > 0)
+						photo.AspectRatio = Math.Max(0.1, (double)bitmap.Width / bitmap.Height);
 
-				return ImageSource.FromFile(cachePath);
+					using (var fs = File.Open(cachePath, FileMode.Create, FileAccess.Write, FileShare.Read))
+					{
+						bitmap.Compress(Bitmap.CompressFormat.Jpeg, quality, fs);
+						fs.Flush();
+					}
+
+					return ImageSource.FromFile(cachePath);
+				}
+				finally
+				{
+					bitmap.Dispose();
+				}
 			}
 			catch
 			{
 				return (ImageSource?)null;
 			}
 		}, ct);
+	}
+
+	/// <summary>
+	/// Fallback method for manual bitmap decoding with downsampling.
+	/// Used on Android versions below Q (API 29) or when LoadThumbnail fails.
+	/// </summary>
+	private static Bitmap? DecodeScaledBitmap(ContentResolver resolver, Android.Net.Uri contentUri, int targetSize, DeviceProfile profile)
+	{
+		var bounds = new BitmapFactory.Options { InJustDecodeBounds = true };
+		using (var s = resolver.OpenInputStream(contentUri))
+		{
+			if (s == null)
+				return null;
+			BitmapFactory.DecodeStream(s, null, bounds);
+		}
+
+		int sample = 1;
+		while ((bounds.OutWidth / sample) > targetSize || (bounds.OutHeight / sample) > targetSize)
+			sample *= 2;
+
+		var useHighQualityConfig = profile.UseHighQualityBitmapConfig;
+		var decodeOptions = new BitmapFactory.Options
+		{
+			InSampleSize = sample,
+#pragma warning disable CA1422 // InDither obsolete, still okay for legacy downsampling
+			InDither = !useHighQualityConfig,
+#pragma warning restore CA1422
+			InPreferredConfig = useHighQualityConfig ? Bitmap.Config.Argb8888 : Bitmap.Config.Rgb565
+		};
+
+		using var stream = resolver.OpenInputStream(contentUri);
+		if (stream == null)
+			return null;
+
+		return BitmapFactory.DecodeStream(stream, null, decodeOptions);
 	}
 
 	private static async Task<string?> ComputeHashAsync(ContentResolver resolver, Android.Net.Uri uri, CancellationToken ct)

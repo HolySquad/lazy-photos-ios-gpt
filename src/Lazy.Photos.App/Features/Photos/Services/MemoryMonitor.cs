@@ -1,14 +1,20 @@
 namespace Lazy.Photos.App.Features.Photos.Services;
 
 /// <summary>
-/// Implementation of memory monitoring.
+/// Implementation of memory monitoring with device-adaptive thresholds.
 /// Single Responsibility: Platform-specific memory monitoring.
+/// Dependency Inversion: Uses IDeviceProfileService for adaptive thresholds.
 /// </summary>
 public sealed class MemoryMonitor : IMemoryMonitor
 {
-	private const long DefaultThresholdBytes = 32 * 1024 * 1024; // 32 MB
+	private readonly IDeviceProfileService _deviceProfileService;
 
-	public long ThrottleThresholdBytes => DefaultThresholdBytes;
+	public MemoryMonitor(IDeviceProfileService deviceProfileService)
+	{
+		_deviceProfileService = deviceProfileService;
+	}
+
+	public long ThrottleThresholdBytes => _deviceProfileService.GetProfile().MemoryThresholdBytes;
 
 	public bool ShouldThrottle()
 	{

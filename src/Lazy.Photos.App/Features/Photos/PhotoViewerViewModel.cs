@@ -24,11 +24,6 @@ public partial class PhotoViewerViewModel : ObservableObject
 		_photoLibraryService = photoLibraryService;
 	}
 
-	public PhotoViewerViewModel()
-		: this(new PhotoLibraryService())
-	{
-	}
-
 	public void SetPhoto(PhotoItem selectedPhoto)
 	{
 		_loadCts?.Cancel();

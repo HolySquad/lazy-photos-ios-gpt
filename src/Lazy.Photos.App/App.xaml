@@ -17,6 +17,7 @@
             <converters:IsNullConverter x:Key="IsNullConverter" />
             <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
             <converters:IsNotNullOrEmptyConverter x:Key="IsNotNullOrEmptyConverter" />
+            <converters:SyncStatusColorConverter x:Key="SyncStatusColorConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

@@ -218,7 +218,10 @@ private partial Task<ImageSource?> BuildThumbnailAsyncCore(PhotoItem photo, bool
 	if (fetchResult.Count == 0 || fetchResult[0] is not PHAsset asset)
 		return Task.FromResult<ImageSource?>(null);
 
-	var size = lowQuality ? new CGSize(180, 180) : new CGSize(800, 800);
+	// Use profile-based thumbnail sizes
+	var profile = Profile;
+	var targetSize = lowQuality ? profile.LowQualityThumbnailSize : profile.HighQualityThumbnailSize;
+	var size = new CGSize(targetSize, targetSize);
 	return CreateImageSourceAsync(asset, size, ct);
 }
 }

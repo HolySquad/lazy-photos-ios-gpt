@@ -2,8 +2,20 @@ using Lazy.Photos.App.Features.Photos.Models;
 
 namespace Lazy.Photos.App.Features.Photos.Services;
 
+/// <summary>
+/// Cross-platform photo library service with device-adaptive thumbnail generation.
+/// </summary>
 public partial class PhotoLibraryService : IPhotoLibraryService
 {
+	private readonly IDeviceProfileService _deviceProfileService;
+
+	public PhotoLibraryService(IDeviceProfileService deviceProfileService)
+	{
+		_deviceProfileService = deviceProfileService;
+	}
+
+	protected DeviceProfile Profile => _deviceProfileService.GetProfile();
+
 	public Task<IReadOnlyList<PhotoItem>> GetRecentPhotosAsync(int maxCount, CancellationToken ct)
 	{
 		return GetRecentPhotosAsyncCore(maxCount, ct);

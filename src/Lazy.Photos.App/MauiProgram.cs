@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Maui;
 using Lazy.Photos.App.Features.Photos;
 using Lazy.Photos.App.Features.Photos.Services;
+using Lazy.Photos.App.Features.Photos.UseCases;
 using Lazy.Photos.App.Features.SignIn;
 using Lazy.Photos.App.Features.SignIn.Services;
 using Lazy.Photos.App.Features.DevStats;
@@ -40,6 +41,19 @@ public static class MauiProgram
 		builder.Services.AddTransient<DevStatsViewModel>();
 		builder.Services.AddTransient<DevStatsPage>();
 		builder.Services.AddSingleton<IPhotoNavigationService, PhotoNavigationService>();
+
+		// SOLID Architecture Services
+		builder.Services.AddSingleton<IPhotoStateRepository, PhotoStateRepository>();
+		builder.Services.AddSingleton<IPhotoSectionBuilder, PhotoSectionBuilder>();
+		builder.Services.AddSingleton<IMemoryMonitor, MemoryMonitor>();
+		builder.Services.AddSingleton<IPhotoPermissionService, PhotoPermissionService>();
+		builder.Services.AddSingleton<IPaginationManager, PaginationManager>();
+		builder.Services.AddSingleton<IThumbnailService, ThumbnailService>();
+
+		// Use Cases (Clean Architecture - Application Layer)
+		builder.Services.AddSingleton<ICachePersistenceUseCase, CachePersistenceUseCase>();
+		builder.Services.AddTransient<ILoadPhotosUseCase, LoadPhotosUseCase>();
+
 		builder.Services.AddSingleton<ISignInPopupService, SignInPopupService>();
 		builder.Services.AddSingleton<ISignInFlowService, SignInFlowService>();
 		builder.Services.AddSingleton<AppShellViewModel>();

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+﻿<?xml version="1.0" encoding="UTF-8" ?>
 <Shell
     x:Class="Lazy.Photos.App.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
@@ -7,8 +7,7 @@
     xmlns:albums="clr-namespace:Lazy.Photos.App.Features.Albums"
     xmlns:search="clr-namespace:Lazy.Photos.App.Features.Search"
     xmlns:settings="clr-namespace:Lazy.Photos.App.Features.Settings"
-    xmlns:local="clr-namespace:Lazy.Photos.App"
-    Title="Lazy Photos">
+    xmlns:local="clr-namespace:Lazy.Photos.App">
 
     <Shell.TitleView>
         <Grid Padding="8,0"

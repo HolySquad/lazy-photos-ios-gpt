@@ -4,8 +4,6 @@ using Lazy.Photos.App.Features.Photos;
 using Lazy.Photos.App.Features.Photos.Services;
 using Lazy.Photos.App.Features.Photos.UseCases;
 using Lazy.Photos.App.Features.Settings;
-using Lazy.Photos.App.Features.SignIn;
-using Lazy.Photos.App.Features.SignIn.Services;
 using Lazy.Photos.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Storage;
@@ -60,17 +58,12 @@ public static class MauiProgram
 		builder.Services.AddSingleton<ICachePersistenceUseCase, CachePersistenceUseCase>();
 		builder.Services.AddTransient<ILoadPhotosUseCase, LoadPhotosUseCase>();
 
-		builder.Services.AddSingleton<ISignInPopupService, SignInPopupService>();
-		builder.Services.AddSingleton<ISignInFlowService, SignInFlowService>();
+		
 		builder.Services.AddSingleton<AppShellViewModel>();
 		builder.Services.AddTransient<MainPageViewModel>();
 		builder.Services.AddTransient<MainPage>();
 		builder.Services.AddTransient<PhotoViewerViewModel>();
 		builder.Services.AddTransient<PhotoViewerPage>();
-		builder.Services.AddTransient<SignInPopupViewModel>();
-		builder.Services.AddTransient<SignInPopup>();
-		builder.Services.AddTransient<SignInViewModel>();
-		builder.Services.AddTransient<SignInPage>();
 		builder.Services.AddSingleton<AppShell>();
 
 #if DEBUG

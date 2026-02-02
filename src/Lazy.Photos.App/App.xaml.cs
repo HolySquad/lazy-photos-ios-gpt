@@ -11,7 +11,9 @@ public partial class App : Application
 
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
-		var shell = Microsoft.Maui.IPlatformApplication.Current?.Services?.GetService<AppShell>() ?? new AppShell();
-		return new Window(shell);
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+		var shell = IPlatformApplication.Current.Services.GetService<AppShell>();
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+		return new Window(shell!);
 	}
 }

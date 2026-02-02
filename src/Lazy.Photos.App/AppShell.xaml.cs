@@ -7,13 +7,5 @@ public partial class AppShell : Shell
 		InitializeComponent();
 		BindingContext = viewModel;
 		Routing.RegisterRoute(nameof(Features.Photos.PhotoViewerPage), typeof(Features.Photos.PhotoViewerPage));
-		Routing.RegisterRoute(nameof(Features.SignIn.SignInPage), typeof(Features.SignIn.SignInPage));
-		Routing.RegisterRoute(nameof(Features.DevStats.DevStatsPage), typeof(Features.DevStats.DevStatsPage));
-	}
-
-	public AppShell()
-		: this(Microsoft.Maui.IPlatformApplication.Current?.Services?.GetService<AppShellViewModel>()
-			?? new AppShellViewModel(new Features.SignIn.Services.NullSignInPopupService()))
-	{
 	}
 }

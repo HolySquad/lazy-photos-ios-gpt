@@ -4,33 +4,44 @@ using Lazy.Photos.App.Features.Photos.Models;
 namespace Lazy.Photos.App.Features.Photos.Services;
 
 /// <summary>
-/// Implementation of thumbnail generation service.
+/// Implementation of thumbnail generation service with device-adaptive tuning.
 /// Single Responsibility: Managing thumbnail generation, prioritization, and quality tracking.
-/// Open/Closed: Can be extended through IMemoryMonitor dependency.
+/// Dependency Inversion: Uses IDeviceProfileService for adaptive performance tuning.
 /// </summary>
 public sealed class ThumbnailService : IThumbnailService
 {
 	private readonly IPhotoLibraryService _photoLibraryService;
 	private readonly IPhotoStateRepository _photoStateRepository;
 	private readonly IMemoryMonitor _memoryMonitor;
-	private readonly SemaphoreSlim _thumbnailSemaphore = new(1);
+	private readonly IDeviceProfileService _deviceProfileService;
+	private readonly SemaphoreSlim _thumbnailSemaphore;
 	private readonly ConcurrentDictionary<string, byte> _lowQualityThumbs = new(StringComparer.OrdinalIgnoreCase);
 	private CancellationTokenSource? _thumbnailFillCts;
 
-	private const int ChunkSize = 6;
-	private const int ApplyBatchSize = 10;
 	private const int FirstScreenCount = 30;
-	private const int PriorityWindow = 24;
-	private const int PriorityLead = 8;
+
+	// Profile-based tuning properties
+	private DeviceProfile Profile => _deviceProfileService.GetProfile();
+	private int ChunkSize => Profile.ChunkSize;
+	private int ApplyBatchSize => Profile.ApplyBatchSize;
+	private int ChunkDelayMs => Profile.ChunkDelayMs;
+	private int ScrollPauseDelayMs => Profile.ScrollPauseDelayMs;
+	private int PriorityWindow => Profile.PriorityWindow;
+	private int PriorityLead => Profile.PriorityLead;
 
 	public ThumbnailService(
 		IPhotoLibraryService photoLibraryService,
 		IPhotoStateRepository photoStateRepository,
-		IMemoryMonitor memoryMonitor)
+		IMemoryMonitor memoryMonitor,
+		IDeviceProfileService deviceProfileService)
 	{
 		_photoLibraryService = photoLibraryService;
 		_photoStateRepository = photoStateRepository;
 		_memoryMonitor = memoryMonitor;
+		_deviceProfileService = deviceProfileService;
+
+		// Initialize semaphore with profile-based concurrency
+		_thumbnailSemaphore = new SemaphoreSlim(deviceProfileService.GetProfile().ThumbnailConcurrency);
 	}
 
 	public Task StartThumbnailFillAsync(
@@ -57,7 +68,7 @@ public sealed class ThumbnailService : IThumbnailService
 			var remaining = prioritized.Skip(FirstScreenCount).ToList();
 
 			await ProcessThumbnailBatchAsync(firstScreen, isScrollingProvider, linkedCt).ConfigureAwait(false);
-			await Task.Delay(50, linkedCt).ConfigureAwait(false);
+			await Task.Delay(ChunkDelayMs, linkedCt).ConfigureAwait(false);
 			await ProcessThumbnailBatchAsync(remaining, isScrollingProvider, linkedCt).ConfigureAwait(false);
 		}, linkedCt);
 	}
@@ -168,7 +179,7 @@ public sealed class ThumbnailService : IThumbnailService
 				break;
 
 			while (isScrollingProvider() && !ct.IsCancellationRequested)
-				await Task.Delay(50, ct).ConfigureAwait(false);
+				await Task.Delay(ScrollPauseDelayMs, ct).ConfigureAwait(false);
 
 			try
 			{
@@ -176,7 +187,7 @@ public sealed class ThumbnailService : IThumbnailService
 				if (_memoryMonitor.ShouldThrottle())
 				{
 					_thumbnailSemaphore.Release();
-					await Task.Delay(100, ct).ConfigureAwait(false);
+					await Task.Delay(ChunkDelayMs * 2, ct).ConfigureAwait(false);
 					continue;
 				}
 
@@ -215,7 +226,7 @@ public sealed class ThumbnailService : IThumbnailService
 			if (processedInChunk >= ChunkSize)
 			{
 				processedInChunk = 0;
-				await Task.Delay(50, ct).ConfigureAwait(false);
+				await Task.Delay(ChunkDelayMs, ct).ConfigureAwait(false);
 			}
 		}
 

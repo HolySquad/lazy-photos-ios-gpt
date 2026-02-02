@@ -25,6 +25,9 @@ public static class MauiProgram
 				fonts.AddFont("materialdesignicons-webfont.ttf", "MaterialDesignIcons");
 			});
 
+		// Device Profile Service (must be registered first - other services depend on it)
+		builder.Services.AddSingleton<IDeviceProfileService, DeviceProfileService>();
+
 		builder.Services.AddSingleton<IPhotoLibraryService, PhotoLibraryService>();
 		builder.Services.AddSingleton<IPhotoSyncService, PhotoSyncService>();
 		builder.Services.AddSingleton<IPhotosApiClient, PhotosApiClientStub>();

@@ -17,8 +17,8 @@ public partial class PhotoViewerPage : ContentPage, IQueryAttributable
 	}
 
 	public PhotoViewerPage()
-		: this(Microsoft.Maui.IPlatformApplication.Current?.Services?.GetService<PhotoViewerViewModel>()
-			?? new PhotoViewerViewModel())
+		: this(Microsoft.Maui.IPlatformApplication.Current?.Services?.GetRequiredService<PhotoViewerViewModel>()
+			?? throw new InvalidOperationException("PhotoViewerViewModel not registered in DI container"))
 	{
 	}
 

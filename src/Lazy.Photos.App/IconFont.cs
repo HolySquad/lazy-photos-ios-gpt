@@ -14,6 +14,7 @@ public static class IconFont
     public const string Close = "\U000F0156";
     public const string Menu = "\U000F035C";
     public const string DotsVertical = "\U000F01D8";
+    public const string ChevronLeft = "\U000F0141";
     public const string ChevronRight = "\U000F0142";
     public const string Plus = "\U000F0415";
 

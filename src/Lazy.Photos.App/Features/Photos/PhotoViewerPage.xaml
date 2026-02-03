@@ -8,7 +8,25 @@
              Shell.TabBarIsVisible="False">
 
     <Grid RowDefinitions="Auto,*,Auto">
-        <Grid Padding="12" ColumnDefinitions="Auto,*,Auto,Auto"
+        <Image x:Name="PhotoImage"
+               Grid.RowSpan="3"
+               Source="{Binding DisplayImage}"
+               Aspect="AspectFit"
+               BackgroundColor="Black">
+            <Image.GestureRecognizers>
+                <SwipeGestureRecognizer Direction="Left"
+                                        Swiped="OnSwipeLeft" />
+                <SwipeGestureRecognizer Direction="Right"
+                                        Swiped="OnSwipeRight" />
+                <TapGestureRecognizer Command="{Binding ToggleChromeCommand}" />
+                <TapGestureRecognizer NumberOfTapsRequired="2" Tapped="OnDoubleTap" />
+                <PinchGestureRecognizer PinchUpdated="OnPinchUpdated" />
+            </Image.GestureRecognizers>
+        </Image>
+
+        <Grid Padding="12"
+              ColumnDefinitions="Auto,*,Auto,Auto"
+              BackgroundColor="#66000000"
               IsVisible="{Binding IsChromeVisible}">
             <Button FontFamily="MaterialDesignIcons"
                     Text="{x:Static local:IconFont.ArrowLeft}"
@@ -36,22 +54,40 @@
         </Grid>
 
         <Grid Grid.Row="1">
-            <Image x:Name="PhotoImage"
-                   Source="{Binding DisplayImage}"
-                   Aspect="AspectFit"
-                   BackgroundColor="Black">
-                <Image.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding ToggleChromeCommand}" />
-                    <TapGestureRecognizer NumberOfTapsRequired="2" Tapped="OnDoubleTap" />
-                    <PinchGestureRecognizer PinchUpdated="OnPinchUpdated" />
-                </Image.GestureRecognizers>
-            </Image>
+            <Grid ColumnDefinitions="Auto,*,Auto"
+                  IsVisible="{Binding IsChromeVisible}">
+                <Button FontFamily="MaterialDesignIcons"
+                        Text="{x:Static local:IconFont.ChevronLeft}"
+                        FontSize="32"
+                        TextColor="White"
+                        BackgroundColor="#66000000"
+                        Padding="6"
+                        CornerRadius="20"
+                        HorizontalOptions="Start"
+                        VerticalOptions="Center"
+                        Margin="12,0"
+                        IsVisible="{Binding HasPrevious}"
+                        Clicked="OnPreviousClicked" />
+                <Button Grid.Column="2"
+                        FontFamily="MaterialDesignIcons"
+                        Text="{x:Static local:IconFont.ChevronRight}"
+                        FontSize="32"
+                        TextColor="White"
+                        BackgroundColor="#66000000"
+                        Padding="6"
+                        CornerRadius="20"
+                        HorizontalOptions="End"
+                        VerticalOptions="Center"
+                        Margin="12,0"
+                        IsVisible="{Binding HasNext}"
+                        Clicked="OnNextClicked" />
+            </Grid>
         </Grid>
 
         <Grid Grid.Row="2"
               Padding="8,12"
               ColumnDefinitions="*,*,*,*"
-              BackgroundColor="#000000"
+              BackgroundColor="#66000000"
               IsVisible="{Binding IsChromeVisible}">
             <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
                 <Label FontFamily="MaterialDesignIcons"

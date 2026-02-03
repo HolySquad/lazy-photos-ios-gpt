@@ -12,4 +12,13 @@ public sealed class PhotoNavigationService : IPhotoNavigationService
 			{ "photo", photo }
 		});
 	}
+
+	public Task ShowPhotoAsync(PhotoItem photo, IReadOnlyList<PhotoItem> contextPhotos)
+	{
+		return Shell.Current.GoToAsync(nameof(PhotoViewerPage), true, new Dictionary<string, object>
+		{
+			{ "photo", photo },
+			{ "photos", contextPhotos }
+		});
+	}
 }

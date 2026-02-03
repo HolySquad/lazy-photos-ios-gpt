@@ -108,7 +108,7 @@ public sealed partial class AlbumDetailViewModel : ObservableObject
 		if (photo == null)
 			return;
 
-		await _photoNavigationService.ShowPhotoAsync(photo);
+		await _photoNavigationService.ShowPhotoAsync(photo, new ReadOnlyCollection<PhotoItem>(Photos));
 	}
 
 	public async Task EnsureLoadedAsync()

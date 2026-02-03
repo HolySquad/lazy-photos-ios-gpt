@@ -192,7 +192,7 @@ public partial class MainPageViewModel : ObservableObject
 		if (photo == null)
 			return;
 
-		await _photoNavigationService.ShowPhotoAsync(photo);
+		await _photoNavigationService.ShowPhotoAsync(photo, new ReadOnlyCollection<PhotoItem>(Photos));
 	}
 
 	private async Task LoadNextPageAsync()

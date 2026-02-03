@@ -1,3 +1,8 @@
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using CommunityToolkit.Mvvm.Input;
 using Lazy.Photos.App.Features.Photos.Models;
 
 namespace Lazy.Photos.App.Features.Photos;
@@ -8,12 +13,14 @@ public partial class PhotoViewerPage : ContentPage, IQueryAttributable
 	private double _startScale = 1;
 	private double _currentScale = 1;
 	private double _maxScale = 4;
+	private bool _isTransitioning;
 
 	public PhotoViewerPage(PhotoViewerViewModel viewModel)
 	{
 		InitializeComponent();
 		_viewModel = viewModel;
 		BindingContext = _viewModel;
+		_viewModel.PropertyChanged += OnViewModelPropertyChanged;
 	}
 
 	public PhotoViewerPage()
@@ -24,8 +31,47 @@ public partial class PhotoViewerPage : ContentPage, IQueryAttributable
 
 	public void ApplyQueryAttributes(IDictionary<string, object> query)
 	{
+		PhotoItem? selectedPhoto = null;
+		IReadOnlyList<PhotoItem>? contextPhotos = null;
+
 		if (query.TryGetValue("photo", out var value) && value is PhotoItem photo)
-			_viewModel.SetPhoto(photo);
+			selectedPhoto = photo;
+
+		if (query.TryGetValue("photos", out var photosValue))
+		{
+			switch (photosValue)
+			{
+				case IReadOnlyList<PhotoItem> readOnly:
+					contextPhotos = readOnly;
+					break;
+				case IList<PhotoItem> list:
+					contextPhotos = new ReadOnlyCollection<PhotoItem>(list);
+					break;
+				case IEnumerable<PhotoItem> enumerable:
+					contextPhotos = enumerable.ToList();
+					break;
+			}
+		}
+
+		if (selectedPhoto == null)
+			return;
+
+		if (contextPhotos is { Count: > 0 })
+			_viewModel.SetPhotoContext(selectedPhoto, contextPhotos);
+		else
+			_viewModel.SetPhoto(selectedPhoto);
+	}
+
+	protected override void OnDisappearing()
+	{
+		base.OnDisappearing();
+		_viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+	}
+
+	private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+	{
+		if (e.PropertyName == nameof(PhotoViewerViewModel.Photo))
+			ResetTransforms();
 	}
 
 	private void OnPinchUpdated(object? sender, PinchGestureUpdatedEventArgs e)
@@ -74,6 +120,66 @@ public partial class PhotoViewerPage : ContentPage, IQueryAttributable
 	private void OnDoubleTap(object? sender, TappedEventArgs e)
 	{
 		ResetTransforms();
+	}
+
+	private async void OnSwipeLeft(object? sender, SwipedEventArgs e)
+	{
+		await AnimateTransitionAsync(1, _viewModel.NextPhotoCommand);
+	}
+
+	private async void OnSwipeRight(object? sender, SwipedEventArgs e)
+	{
+		await AnimateTransitionAsync(-1, _viewModel.PreviousPhotoCommand);
+	}
+
+	private async void OnNextClicked(object? sender, EventArgs e)
+	{
+		await AnimateTransitionAsync(1, _viewModel.NextPhotoCommand);
+	}
+
+	private async void OnPreviousClicked(object? sender, EventArgs e)
+	{
+		await AnimateTransitionAsync(-1, _viewModel.PreviousPhotoCommand);
+	}
+
+	private async Task AnimateTransitionAsync(int direction, IRelayCommand command)
+	{
+		if (_isTransitioning || PhotoImage == null)
+			return;
+
+		if (!command.CanExecute(null))
+			return;
+
+		_isTransitioning = true;
+		var width = GetTransitionWidth();
+		var outX = -direction * width;
+		var inX = direction * width;
+
+		await Task.WhenAll(
+			PhotoImage.TranslateToAsync(outX, 0, 180, Easing.CubicIn),
+			PhotoImage.FadeToAsync(0, 180, Easing.CubicIn));
+
+		command.Execute(null);
+
+		PhotoImage.TranslationX = inX;
+		PhotoImage.Opacity = 0;
+
+		await Task.WhenAll(
+			PhotoImage.TranslateToAsync(0, 0, 200, Easing.CubicOut),
+			PhotoImage.FadeToAsync(1, 200, Easing.CubicOut));
+
+		_isTransitioning = false;
+	}
+
+	private double GetTransitionWidth()
+	{
+		var width = PhotoImage.Width;
+		if (width <= 0)
+			width = Width;
+		if (width <= 0)
+			width = Window?.Width ?? 0;
+
+		return width > 0 ? width : 300;
 	}
 
 	protected override bool OnBackButtonPressed()

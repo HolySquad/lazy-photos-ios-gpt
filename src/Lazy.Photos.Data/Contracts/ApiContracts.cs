@@ -34,7 +34,7 @@ public record UploadSessionRequest(
 
 public record UploadSessionResponse(
 	Guid UploadSessionId,
-	Uri UploadUrl,
+	Uri? UploadUrl,
 	int ChunkSize,
 	bool AlreadyExists);
 

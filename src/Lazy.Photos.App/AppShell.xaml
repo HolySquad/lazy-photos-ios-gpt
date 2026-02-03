@@ -7,6 +7,8 @@
     xmlns:albums="clr-namespace:Lazy.Photos.App.Features.Albums"
     xmlns:search="clr-namespace:Lazy.Photos.App.Features.Search"
     xmlns:settings="clr-namespace:Lazy.Photos.App.Features.Settings"
+    xmlns:sync="clr-namespace:Lazy.Photos.App.Features.Sync"
+    xmlns:logs="clr-namespace:Lazy.Photos.App.Features.Logs"
     xmlns:local="clr-namespace:Lazy.Photos.App">
 
     <Shell.TitleView>
@@ -48,7 +50,7 @@
                                  Color="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
             </ShellContent.Icon>
         </ShellContent>
-        <ShellContent
+        <!--<ShellContent
             Title="Search"
             ContentTemplate="{DataTemplate search:SearchPage}"
             Route="SearchPage">
@@ -57,14 +59,35 @@
                                  Glyph="{x:Static local:IconFont.Magnify}"
                                  Color="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
             </ShellContent.Icon>
-        </ShellContent>
+        </ShellContent>-->
+       
         <ShellContent
-            Title="Settings"
-            ContentTemplate="{DataTemplate settings:SettingsPage}"
-            Route="SettingsPage">
+            Title="Sync"
+            ContentTemplate="{DataTemplate sync:SyncPage}"
+            Route="SyncPage">
             <ShellContent.Icon>
                 <FontImageSource FontFamily="MaterialDesignIcons"
-                                 Glyph="{x:Static local:IconFont.Cog}"
+                                 Glyph="{x:Static local:IconFont.CloudSync}"
+                                 Color="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
+            </ShellContent.Icon>
+        </ShellContent>
+        <ShellContent
+     Title="Settings"
+     ContentTemplate="{DataTemplate settings:SettingsPage}"
+     Route="SettingsPage">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="MaterialDesignIcons"
+                          Glyph="{x:Static local:IconFont.Cog}"
+                          Color="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
+            </ShellContent.Icon>
+        </ShellContent>
+        <ShellContent
+            Title="Logs"
+            ContentTemplate="{DataTemplate logs:LogsPage}"
+            Route="LogsPage">
+            <ShellContent.Icon>
+                <FontImageSource FontFamily="MaterialDesignIcons"
+                                 Glyph="&#xF0286;"
                                  Color="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
             </ShellContent.Icon>
         </ShellContent>

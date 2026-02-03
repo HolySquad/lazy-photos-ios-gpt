@@ -17,6 +17,7 @@ public class LazyPhotosDbContext : DbContext
     public DbSet<SharedLink> SharedLinks { get; set; } = null!;
     public DbSet<PhotoAlbum> PhotoAlbums { get; set; } = null!;
     public DbSet<PhotoTag> PhotoTags { get; set; } = null!;
+    public DbSet<UploadSession> UploadSessions { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -177,6 +178,24 @@ public class LazyPhotosDbContext : DbContext
             entity.HasOne(e => e.Photo)
                   .WithMany()
                   .HasForeignKey(e => e.PhotoId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // UploadSession configuration
+        modelBuilder.Entity<UploadSession>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt });
+            entity.HasIndex(e => e.Hash);
+
+            entity.Property(e => e.Hash).HasMaxLength(64).IsRequired();
+            entity.Property(e => e.MimeType).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.StorageKey).HasMaxLength(1024);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
     }

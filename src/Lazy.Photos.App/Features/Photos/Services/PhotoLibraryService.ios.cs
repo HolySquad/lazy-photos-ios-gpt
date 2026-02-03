@@ -6,6 +6,7 @@ using Photos;
 using UIKit;
 using System.Security.Cryptography;
 using System.Text;
+using System.Buffers;
 
 namespace Lazy.Photos.App.Features.Photos.Services;
 
@@ -64,10 +65,37 @@ public partial class PhotoLibraryService
 		}
 	}
 
-	private partial Task<string?> ComputeHashAsyncCore(PhotoItem photo, CancellationToken ct)
+	private partial async Task<string?> ComputeHashAsyncCore(PhotoItem photo, CancellationToken ct)
 	{
-		// Hash computation skipped on iOS for now to avoid extra I/O on first pass.
-		return Task.FromResult<string?>(photo?.Hash);
+		if (string.IsNullOrWhiteSpace(photo.Id))
+			return null;
+
+		await using var stream = await GetPhotoStreamAsyncCore(photo, ct);
+		if (stream == null)
+			return null;
+
+		using var sha = SHA256.Create();
+		var buffer = ArrayPool<byte>.Shared.Rent(81920); // 80KB chunks
+		int read;
+		try
+		{
+			while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, ct)) > 0)
+				sha.TransformBlock(buffer, 0, read, null, 0);
+		}
+		finally
+		{
+			ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+		}
+
+		sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+		var hashBytes = sha.Hash;
+		if (hashBytes == null)
+			return null;
+
+		var sb = new StringBuilder(hashBytes.Length * 2);
+		foreach (var b in hashBytes)
+			sb.Append(b.ToString("x2"));
+		return sb.ToString();
 	}
 
 	private partial Task<ImageSource?> GetFullImageAsyncCore(PhotoItem photo, CancellationToken ct)
@@ -190,6 +218,124 @@ public partial class PhotoLibraryService
 	var size = new CGSize(targetSize, targetSize);
 	return CreateImageSourceAsync(asset, size, ct);
 }
+
+	private partial Task<Stream?> GetPhotoStreamAsyncCore(PhotoItem photo, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(photo.Id))
+			return Task.FromResult<Stream?>(null);
+
+		using var fetchResult = PHAsset.FetchAssetsUsingLocalIdentifiers(new[] { photo.Id }, null);
+		if (fetchResult.Count == 0 || fetchResult[0] is not PHAsset asset)
+			return Task.FromResult<Stream?>(null);
+
+		var tcs = new TaskCompletionSource<Stream?>();
+		var requestOptions = new PHImageRequestOptions
+		{
+			DeliveryMode = PHImageRequestOptionsDeliveryMode.HighQualityFormat,
+			NetworkAccessAllowed = true,
+			Synchronous = false
+		};
+
+		PHImageManager.DefaultManager.RequestImageDataAndOrientation(
+			asset, requestOptions,
+			(data, dataUti, orientation, info) =>
+			{
+				tcs.TrySetResult(data?.AsStream());
+			});
+
+		ct.Register(() => tcs.TrySetCanceled(ct));
+		return tcs.Task;
+	}
+
+	private partial async Task<long> GetPhotoSizeAsyncCore(PhotoItem photo, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(photo.Id))
+			return 0;
+
+		using var fetchResult = PHAsset.FetchAssetsUsingLocalIdentifiers(new[] { photo.Id }, null);
+		if (fetchResult.Count == 0 || fetchResult[0] is not PHAsset asset)
+			return 0;
+
+		var tcs = new TaskCompletionSource<long>();
+		var requestOptions = new PHImageRequestOptions
+		{
+			DeliveryMode = PHImageRequestOptionsDeliveryMode.HighQualityFormat,
+			NetworkAccessAllowed = true,
+			Synchronous = false
+		};
+
+		PHImageManager.DefaultManager.RequestImageDataAndOrientation(
+			asset, requestOptions,
+			(data, dataUti, orientation, info) =>
+			{
+				tcs.TrySetResult((long)(data?.Length ?? 0));
+			});
+
+		ct.Register(() => tcs.TrySetCanceled(ct));
+		return await tcs.Task;
+	}
+
+	private partial Task<string> GetPhotoMimeTypeAsyncCore(PhotoItem photo, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(photo.Id))
+			return Task.FromResult("image/jpeg");
+
+		using var fetchResult = PHAsset.FetchAssetsUsingLocalIdentifiers(new[] { photo.Id }, null);
+		if (fetchResult.Count == 0 || fetchResult[0] is not PHAsset asset)
+			return Task.FromResult("image/jpeg");
+
+		var tcs = new TaskCompletionSource<string>();
+		var requestOptions = new PHImageRequestOptions
+		{
+			DeliveryMode = PHImageRequestOptionsDeliveryMode.HighQualityFormat,
+			NetworkAccessAllowed = true,
+			Synchronous = false
+		};
+
+		PHImageManager.DefaultManager.RequestImageDataAndOrientation(
+			asset, requestOptions,
+			(data, dataUti, orientation, info) =>
+			{
+				var mimeType = MapUtiToMimeType(dataUti ?? "public.jpeg");
+				tcs.TrySetResult(mimeType);
+			});
+
+		ct.Register(() => tcs.TrySetCanceled(ct));
+		return tcs.Task;
+	}
+
+	private static string MapUtiToMimeType(string uti)
+	{
+		return uti.ToLowerInvariant() switch
+		{
+			"public.jpeg" or "public.jpg" => "image/jpeg",
+			"public.png" => "image/png",
+			"public.heic" => "image/heic",
+			"public.heif" => "image/heif",
+			"public.tiff" => "image/tiff",
+			"com.compuserve.gif" => "image/gif",
+			"public.webp" => "image/webp",
+			_ => uti.Contains("heic") ? "image/heic" : "image/jpeg"
+		};
+	}
+
+	private partial Task<(int Width, int Height)?> GetPhotoDimensionsAsyncCore(PhotoItem photo, CancellationToken ct)
+	{
+		if (string.IsNullOrWhiteSpace(photo.Id))
+			return Task.FromResult<(int, int)?>(null);
+
+		using var fetchResult = PHAsset.FetchAssetsUsingLocalIdentifiers(new[] { photo.Id }, null);
+		if (fetchResult.Count == 0 || fetchResult[0] is not PHAsset asset)
+			return Task.FromResult<(int, int)?>(null);
+
+		var width = (int)asset.PixelWidth;
+		var height = (int)asset.PixelHeight;
+
+		if (width <= 0 || height <= 0)
+			return Task.FromResult<(int, int)?>(null);
+
+		return Task.FromResult<(int, int)?>((width, height));
+	}
 }
 
 internal static class NSDateExtensions

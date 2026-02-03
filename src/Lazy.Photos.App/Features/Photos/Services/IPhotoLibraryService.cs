@@ -10,4 +10,10 @@ public interface IPhotoLibraryService
 	Task<ImageSource?> BuildThumbnailAsync(PhotoItem photo, CancellationToken ct);
 	Task<ImageSource?> BuildThumbnailAsync(PhotoItem photo, bool lowQuality, CancellationToken ct);
 	Task<ImageSource?> GetFullImageAsync(PhotoItem photo, CancellationToken ct);
+
+	// Upload support methods
+	Task<Stream?> GetPhotoStreamAsync(PhotoItem photo, CancellationToken ct);
+	Task<long> GetPhotoSizeAsync(PhotoItem photo, CancellationToken ct);
+	Task<string> GetPhotoMimeTypeAsync(PhotoItem photo, CancellationToken ct);
+	Task<(int Width, int Height)?> GetPhotoDimensionsAsync(PhotoItem photo, CancellationToken ct);
 }

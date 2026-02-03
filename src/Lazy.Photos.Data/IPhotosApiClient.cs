@@ -57,7 +57,7 @@ public sealed class PhotosApiClientStub : IPhotosApiClient
 		Task.FromResult(new ServerClaimResponse(Guid.Empty));
 
 	public Task<UploadSessionResponse> CreateUploadSessionAsync(UploadSessionRequest request, CancellationToken ct) =>
-		Task.FromResult(new UploadSessionResponse(Guid.NewGuid(), new Uri("https://example.invalid/upload"), 512 * 1024, false));
+		Task.FromResult(new UploadSessionResponse(Guid.NewGuid(), null, 512 * 1024, false));
 
 	public Task UploadChunkAsync(Guid uploadSessionId, long offset, Stream content, CancellationToken ct) =>
 		Task.CompletedTask;

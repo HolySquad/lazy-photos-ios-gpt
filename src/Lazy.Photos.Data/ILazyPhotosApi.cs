@@ -64,6 +64,19 @@ public interface ILazyPhotosApi
 	[Headers("Authorization: Bearer")]
 	Task RemovePhotoFromAlbumAsync(int id, int photoId);
 
+	// Upload session endpoints (chunked upload)
+	[Post("/api/upload-sessions")]
+	[Headers("Authorization: Bearer")]
+	Task<BackendUploadSessionResponse> CreateUploadSessionAsync([Body] BackendUploadSessionRequest request);
+
+	[Put("/api/upload-sessions/{id}/chunks")]
+	[Headers("Authorization: Bearer")]
+	Task UploadChunkAsync(Guid id, [Query] long offset, [Body] StreamPart content);
+
+	[Post("/api/upload-sessions/{id}/complete")]
+	[Headers("Authorization: Bearer")]
+	Task<BackendUploadCompleteResponse> CompleteUploadAsync(Guid id, [Body] BackendUploadCompleteRequest request);
+
 	// Health check
 	[Get("/health")]
 	Task<HealthResponse> GetHealthAsync();
@@ -134,4 +147,26 @@ public record BackendAlbumUpdateRequest(
 	int? CoverPhotoId);
 
 public record BackendAlbumItemRequest(
+	int PhotoId);
+
+public record BackendUploadSessionRequest(
+	string Hash,
+	long SizeBytes,
+	string MimeType,
+	DateTime? CapturedAt,
+	int? Width,
+	int? Height,
+	double? LocationLat,
+	double? LocationLon);
+
+public record BackendUploadSessionResponse(
+	string UploadSessionId,
+	string? UploadUrl,
+	int ChunkSize,
+	bool AlreadyExists);
+
+public record BackendUploadCompleteRequest(
+	string StorageKey);
+
+public record BackendUploadCompleteResponse(
 	int PhotoId);

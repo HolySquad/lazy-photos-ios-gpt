@@ -315,5 +315,132 @@ public partial class PhotoLibraryService
 			sb.Append(b.ToString("x2"));
 		return sb.ToString();
 	}
+
+	private partial Task<Stream?> GetPhotoStreamAsyncCore(PhotoItem photo, CancellationToken ct)
+	{
+		ct.ThrowIfCancellationRequested();
+
+		if (photo?.Id == null)
+			return Task.FromResult<Stream?>(null);
+
+		var resolver = Android.App.Application.Context.ContentResolver;
+		var uri = MediaStore.Images.Media.ExternalContentUri;
+		var contentUri = ContentUris.WithAppendedId(uri, long.Parse(photo.Id));
+
+		try
+		{
+			var stream = resolver.OpenInputStream(contentUri);
+			return Task.FromResult<Stream?>(stream);
+		}
+		catch
+		{
+			return Task.FromResult<Stream?>(null);
+		}
+	}
+
+	private partial Task<long> GetPhotoSizeAsyncCore(PhotoItem photo, CancellationToken ct)
+	{
+		ct.ThrowIfCancellationRequested();
+
+		if (photo?.Id == null)
+			return Task.FromResult(0L);
+
+		var resolver = Android.App.Application.Context.ContentResolver;
+		var uri = MediaStore.Images.Media.ExternalContentUri;
+		var contentUri = ContentUris.WithAppendedId(uri, long.Parse(photo.Id));
+
+		var projection = new[] { MediaStore.Images.Media.InterfaceConsts.Size };
+
+		try
+		{
+			using var cursor = resolver.Query(contentUri, projection, null, null, null);
+			if (cursor == null || !cursor.MoveToFirst())
+				return Task.FromResult(0L);
+
+			var sizeIndex = cursor.GetColumnIndex(MediaStore.Images.Media.InterfaceConsts.Size);
+			if (sizeIndex < 0)
+				return Task.FromResult(0L);
+
+			return Task.FromResult(cursor.GetLong(sizeIndex));
+		}
+		catch
+		{
+			return Task.FromResult(0L);
+		}
+	}
+
+	private partial Task<string> GetPhotoMimeTypeAsyncCore(PhotoItem photo, CancellationToken ct)
+	{
+		ct.ThrowIfCancellationRequested();
+
+		if (photo?.Id == null)
+			return Task.FromResult("image/jpeg");
+
+		var resolver = Android.App.Application.Context.ContentResolver;
+		var uri = MediaStore.Images.Media.ExternalContentUri;
+		var contentUri = ContentUris.WithAppendedId(uri, long.Parse(photo.Id));
+
+		var projection = new[] { MediaStore.Images.Media.InterfaceConsts.MimeType };
+
+		try
+		{
+			using var cursor = resolver.Query(contentUri, projection, null, null, null);
+			if (cursor == null || !cursor.MoveToFirst())
+				return Task.FromResult("image/jpeg");
+
+			var mimeIndex = cursor.GetColumnIndex(MediaStore.Images.Media.InterfaceConsts.MimeType);
+			if (mimeIndex < 0)
+				return Task.FromResult("image/jpeg");
+
+			return Task.FromResult(cursor.GetString(mimeIndex) ?? "image/jpeg");
+		}
+		catch
+		{
+			return Task.FromResult("image/jpeg");
+		}
+	}
+
+	private partial Task<(int Width, int Height)?> GetPhotoDimensionsAsyncCore(PhotoItem photo, CancellationToken ct)
+	{
+		ct.ThrowIfCancellationRequested();
+
+		if (photo?.Id == null)
+			return Task.FromResult<(int, int)?>(null);
+
+		var resolver = Android.App.Application.Context.ContentResolver;
+		var uri = MediaStore.Images.Media.ExternalContentUri;
+		var contentUri = ContentUris.WithAppendedId(uri, long.Parse(photo.Id));
+
+		var projection = new[]
+		{
+			MediaStore.Images.Media.InterfaceConsts.Width,
+			MediaStore.Images.Media.InterfaceConsts.Height
+		};
+
+		try
+		{
+			using var cursor = resolver.Query(contentUri, projection, null, null, null);
+			if (cursor == null || !cursor.MoveToFirst())
+				return Task.FromResult<(int, int)?>(null);
+
+			var widthIndex = cursor.GetColumnIndex(MediaStore.Images.Media.InterfaceConsts.Width);
+			var heightIndex = cursor.GetColumnIndex(MediaStore.Images.Media.InterfaceConsts.Height);
+
+			if (widthIndex < 0 || heightIndex < 0)
+				return Task.FromResult<(int, int)?>(null);
+
+			var width = cursor.GetInt(widthIndex);
+			var height = cursor.GetInt(heightIndex);
+
+			if (width <= 0 || height <= 0)
+				return Task.FromResult<(int, int)?>(null);
+
+			return Task.FromResult<(int, int)?>((width, height));
+		}
+		catch
+		{
+			return Task.FromResult<(int, int)?>(null);
+		}
+	}
 }
 #endif

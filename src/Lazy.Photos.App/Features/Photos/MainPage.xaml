@@ -34,7 +34,7 @@
         </CollectionView.GroupHeaderTemplate>
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="models:PhotoItem">
-                <Grid WidthRequest="{Binding BindingContext.CellSize, Source={x:Reference ThisPage}}"
+                <Grid WidthRequest="{Binding BindingContext.CellSize, Source={x:Reference ThisPage}}" HorizontalOptions="Start"
                       HeightRequest="{Binding BindingContext.CellSize, Source={x:Reference ThisPage}}">
                     <Image Source="{Binding Thumbnail}"
                            Aspect="AspectFill">

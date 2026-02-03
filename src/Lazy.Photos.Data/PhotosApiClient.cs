@@ -1,5 +1,6 @@
 using Lazy.Photos.Core.Models;
 using Lazy.Photos.Data.Contracts;
+using Refit;
 
 namespace Lazy.Photos.Data;
 
@@ -201,14 +202,46 @@ public sealed class PhotosApiClient : IPhotosApiClient
 	public Task<ServerClaimResponse> ClaimServerAsync(ServerClaimRequest request, CancellationToken ct) =>
 		throw new NotImplementedException("Server claim not implemented yet");
 
-	public Task<UploadSessionResponse> CreateUploadSessionAsync(UploadSessionRequest request, CancellationToken ct) =>
-		throw new NotImplementedException("Upload session not implemented yet");
+	public async Task<UploadSessionResponse> CreateUploadSessionAsync(UploadSessionRequest request, CancellationToken ct)
+	{
+		var backendRequest = new BackendUploadSessionRequest(
+			Hash: request.Hash,
+			SizeBytes: request.SizeBytes,
+			MimeType: request.MimeType,
+			CapturedAt: request.CapturedAt?.DateTime,
+			Width: request.Width,
+			Height: request.Height,
+			LocationLat: request.LocationLat,
+			LocationLon: request.LocationLon);
 
-	public Task UploadChunkAsync(Guid uploadSessionId, long offset, Stream content, CancellationToken ct) =>
-		throw new NotImplementedException("Chunked upload not implemented yet");
+		var response = await _api.CreateUploadSessionAsync(backendRequest);
 
-	public Task<UploadCompleteResponse> CompleteUploadAsync(Guid uploadSessionId, UploadCompleteRequest request, CancellationToken ct) =>
-		throw new NotImplementedException("Upload complete not implemented yet");
+		Uri? uploadUrl = null;
+		if (!string.IsNullOrEmpty(response.UploadUrl))
+		{
+			uploadUrl = new Uri(response.UploadUrl);
+		}
+
+		return new UploadSessionResponse(
+			UploadSessionId: Guid.Parse(response.UploadSessionId),
+			UploadUrl: uploadUrl,
+			ChunkSize: response.ChunkSize,
+			AlreadyExists: response.AlreadyExists);
+	}
+
+	public async Task UploadChunkAsync(Guid uploadSessionId, long offset, Stream content, CancellationToken ct)
+	{
+		var streamPart = new StreamPart(content, "chunk", "application/octet-stream");
+		await _api.UploadChunkAsync(uploadSessionId, offset, streamPart);
+	}
+
+	public async Task<UploadCompleteResponse> CompleteUploadAsync(Guid uploadSessionId, UploadCompleteRequest request, CancellationToken ct)
+	{
+		var backendRequest = new BackendUploadCompleteRequest(request.StorageKey);
+		var response = await _api.CompleteUploadAsync(uploadSessionId, backendRequest);
+
+		return new UploadCompleteResponse(ConvertIntToGuid(response.PhotoId));
+	}
 
 	public Task<FeedResponse> GetFeedAsync(string? cursor, int? limit, CancellationToken ct) =>
 		throw new NotImplementedException("Feed not implemented yet");

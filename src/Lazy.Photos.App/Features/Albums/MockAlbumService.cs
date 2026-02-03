@@ -101,4 +101,22 @@ public sealed class MockAlbumService : IAlbumService
         _photoCounts.TryGetValue(albumId, out var count);
         return Task.FromResult(count);
     }
+
+    public Task<IReadOnlyList<Features.Photos.Models.PhotoItem>> GetAlbumPhotosAsync(string albumId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.FromResult<IReadOnlyList<Features.Photos.Models.PhotoItem>>(Array.Empty<Features.Photos.Models.PhotoItem>());
+    }
+
+    public Task AddPhotoToAlbumAsync(string albumId, string photoId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
+
+    public Task RemovePhotoFromAlbumAsync(string albumId, string photoId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
 }

@@ -132,8 +132,9 @@
 - `GET /api/albums/{id}` - Get album details
 - `PUT /api/albums/{id}` - Update album
 - `DELETE /api/albums/{id}` - Delete album
-- `POST /api/albums/{id}/photos` - Add photos to album
-- `DELETE /api/albums/{id}/photos/{photoId}` - Remove photo
+- `GET /api/albums/{id}/items` - List album photos
+- `POST /api/albums/{id}/items` - Add photos to album
+- `DELETE /api/albums/{id}/items/{photoId}` - Remove photo
 
 ### Search
 - `GET /api/search?q={query}&from={date}&to={date}` - Search photos

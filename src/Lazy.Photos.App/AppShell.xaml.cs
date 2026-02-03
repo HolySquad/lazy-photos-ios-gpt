@@ -9,6 +9,8 @@ public partial class AppShell : Shell
 
 		// Register route-based pages
 		Routing.RegisterRoute(nameof(Features.Photos.PhotoViewerPage), typeof(Features.Photos.PhotoViewerPage));
+		Routing.RegisterRoute(nameof(Features.Albums.AlbumDetailPage), typeof(Features.Albums.AlbumDetailPage));
+		Routing.RegisterRoute(nameof(Features.Albums.AlbumPhotoPickerPage), typeof(Features.Albums.AlbumPhotoPickerPage));
 		Routing.RegisterRoute("onboarding", typeof(Features.Onboarding.OnboardingPage));
 	}
 }

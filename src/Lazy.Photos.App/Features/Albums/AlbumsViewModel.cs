@@ -171,15 +171,18 @@ public sealed partial class AlbumsViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private async Task OpenAlbumAsync(AlbumDisplayItem? album)
-    {
-        if (album is null)
-            return;
+	[RelayCommand]
+	private async Task OpenAlbumAsync(AlbumDisplayItem? album)
+	{
+		if (album is null)
+			return;
 
-        // TODO: Navigate to album detail page
-        await Task.CompletedTask;
-    }
+		await Shell.Current.GoToAsync(nameof(AlbumDetailPage), true, new Dictionary<string, object>
+		{
+			{ "albumId", album.Id },
+			{ "albumName", album.Name }
+		});
+	}
 }
 
 public sealed class AlbumDisplayItem

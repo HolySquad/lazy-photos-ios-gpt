@@ -79,6 +79,59 @@ public sealed class PhotosApiClient : IPhotosApiClient
 		await _api.DeletePhotoAsync(id);
 	}
 
+	public async Task<AlbumListResponse> GetAlbumsAsync(CancellationToken ct)
+	{
+		var response = await _api.GetAlbumsAsync();
+		var albums = response.Albums.Select(MapToAlbumDto).ToArray();
+		return new AlbumListResponse(albums);
+	}
+
+	public async Task<AlbumDto> CreateAlbumAsync(AlbumCreateRequest request, CancellationToken ct)
+	{
+		var backendRequest = new BackendAlbumCreateRequest(request.Name);
+		var response = await _api.CreateAlbumAsync(backendRequest);
+		return MapToAlbumDto(response);
+	}
+
+	public async Task<AlbumDto> UpdateAlbumAsync(Guid albumId, AlbumUpdateRequest request, CancellationToken ct)
+	{
+		var backendRequest = new BackendAlbumUpdateRequest(
+			request.Name,
+			request.CoverPhotoId.HasValue ? ConvertGuidToInt(request.CoverPhotoId.Value) : null);
+
+		var id = ConvertGuidToInt(albumId);
+		var response = await _api.UpdateAlbumAsync(id, backendRequest);
+		return MapToAlbumDto(response);
+	}
+
+	public async Task DeleteAlbumAsync(Guid albumId, CancellationToken ct)
+	{
+		var id = ConvertGuidToInt(albumId);
+		await _api.DeleteAlbumAsync(id);
+	}
+
+	public async Task<AlbumPhotosResponse> GetAlbumPhotosAsync(Guid albumId, CancellationToken ct)
+	{
+		var id = ConvertGuidToInt(albumId);
+		var response = await _api.GetAlbumPhotosAsync(id);
+		var photos = response.Select(MapToPhotoDto).ToArray();
+		return new AlbumPhotosResponse(photos);
+	}
+
+	public async Task AddPhotoToAlbumAsync(Guid albumId, AlbumItemRequest request, CancellationToken ct)
+	{
+		var id = ConvertGuidToInt(albumId);
+		var backendRequest = new BackendAlbumItemRequest(ConvertGuidToInt(request.PhotoId));
+		await _api.AddPhotoToAlbumAsync(id, backendRequest);
+	}
+
+	public async Task RemovePhotoFromAlbumAsync(Guid albumId, Guid photoId, CancellationToken ct)
+	{
+		var id = ConvertGuidToInt(albumId);
+		var backendPhotoId = ConvertGuidToInt(photoId);
+		await _api.RemovePhotoFromAlbumAsync(id, backendPhotoId);
+	}
+
 	// DTO Mapping Methods
 	private static PhotoDto MapToPhotoDto(BackendPhotoDto backend)
 	{
@@ -102,6 +155,24 @@ public sealed class PhotosApiClient : IPhotosApiClient
 			UpdatedAt: backend.UploadedAt,
 			Thumbnails: null,
 			DownloadUrl: null);
+	}
+
+	private static AlbumDto MapToAlbumDto(BackendAlbumDto backend)
+	{
+		var updatedAt = backend.UpdatedAt == default ? backend.CreatedAt : backend.UpdatedAt;
+		return new AlbumDto(
+			Id: ConvertIntToGuid(backend.Id),
+			UserId: ConvertIntToGuid(backend.UserId),
+			Name: backend.Name,
+			CoverPhotoId: ConvertNullableIntToGuid(backend.CoverPhotoId),
+			CreatedAt: backend.CreatedAt,
+			UpdatedAt: updatedAt,
+			IsDeleted: backend.IsDeleted);
+	}
+
+	private static Guid? ConvertNullableIntToGuid(int? id)
+	{
+		return id.HasValue ? ConvertIntToGuid(id.Value) : null;
 	}
 
 	// ID Conversion Helpers (deterministic mapping)
@@ -138,9 +209,6 @@ public sealed class PhotosApiClient : IPhotosApiClient
 
 	public Task<UploadCompleteResponse> CompleteUploadAsync(Guid uploadSessionId, UploadCompleteRequest request, CancellationToken ct) =>
 		throw new NotImplementedException("Upload complete not implemented yet");
-
-	public Task<AlbumListResponse> GetAlbumsAsync(CancellationToken ct) =>
-		throw new NotImplementedException("Albums not implemented yet");
 
 	public Task<FeedResponse> GetFeedAsync(string? cursor, int? limit, CancellationToken ct) =>
 		throw new NotImplementedException("Feed not implemented yet");

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:albums="clr-namespace:Lazy.Photos.App.Features.Albums"
+             xmlns:models="clr-namespace:Lazy.Photos.App.Features.Photos.Models"
+             x:Class="Lazy.Photos.App.Features.Albums.AlbumDetailPage"
+             x:Name="ThisPage"
+             x:DataType="albums:AlbumDetailViewModel"
+             Title="{Binding AlbumTitle}">
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Add"
+                     Command="{Binding ShowAddPhotosCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <RefreshView IsRefreshing="{Binding IsRefreshing}"
+                 Command="{Binding RefreshCommand}">
+        <Grid>
+            <ActivityIndicator IsRunning="{Binding IsLoading}"
+                               IsVisible="{Binding IsLoading}"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+
+            <Label Text="{Binding ErrorMessage}"
+                   IsVisible="{Binding HasError}"
+                   TextColor="{StaticResource Magenta}"
+                   FontSize="14"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Start"
+                   Margin="16" />
+
+            <CollectionView ItemsSource="{Binding Photos}"
+                            SelectionMode="None"
+                            IsVisible="{Binding IsLoading, Converter={StaticResource InvertedBoolConverter}}"
+                            Margin="12,8">
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical"
+                                     Span="{Binding Columns}"
+                                     HorizontalItemSpacing="4"
+                                     VerticalItemSpacing="4" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:PhotoItem">
+                        <Grid WidthRequest="{Binding BindingContext.CellSize, Source={x:Reference ThisPage}}"
+                              HeightRequest="{Binding BindingContext.CellSize, Source={x:Reference ThisPage}}">
+                            <Image Source="{Binding Thumbnail}"
+                                   Aspect="AspectFill">
+                                <Image.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding BindingContext.OpenPhotoCommand, Source={x:Reference ThisPage}}"
+                                                          CommandParameter="{Binding .}" />
+                                </Image.GestureRecognizers>
+                            </Image>
+                            <FlyoutBase.ContextFlyout>
+                                <MenuFlyout>
+                                    <MenuFlyoutItem Text="Remove from album"
+                                                    Command="{Binding BindingContext.RemovePhotoCommand, Source={x:Reference ThisPage}}"
+                                                    CommandParameter="{Binding .}" />
+                                </MenuFlyout>
+                            </FlyoutBase.ContextFlyout>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                <CollectionView.EmptyView>
+                    <Label Text="No photos in this album yet."
+                           Padding="12"
+                           HorizontalTextAlignment="Center"
+                           VerticalTextAlignment="Center" />
+                </CollectionView.EmptyView>
+            </CollectionView>
+        </Grid>
+    </RefreshView>
+</ContentPage>

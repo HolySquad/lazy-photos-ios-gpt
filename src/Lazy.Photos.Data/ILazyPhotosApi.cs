@@ -35,6 +35,35 @@ public interface ILazyPhotosApi
 	[Headers("Authorization: Bearer")]
 	Task DeletePhotoAsync(int id);
 
+	// Album endpoints (require authentication)
+	[Get("/api/albums")]
+	[Headers("Authorization: Bearer")]
+	Task<BackendAlbumListResponse> GetAlbumsAsync();
+
+	[Post("/api/albums")]
+	[Headers("Authorization: Bearer")]
+	Task<BackendAlbumDto> CreateAlbumAsync([Body] BackendAlbumCreateRequest request);
+
+	[Put("/api/albums/{id}")]
+	[Headers("Authorization: Bearer")]
+	Task<BackendAlbumDto> UpdateAlbumAsync(int id, [Body] BackendAlbumUpdateRequest request);
+
+	[Delete("/api/albums/{id}")]
+	[Headers("Authorization: Bearer")]
+	Task DeleteAlbumAsync(int id);
+
+	[Get("/api/albums/{id}/items")]
+	[Headers("Authorization: Bearer")]
+	Task<List<BackendPhotoDto>> GetAlbumPhotosAsync(int id);
+
+	[Post("/api/albums/{id}/items")]
+	[Headers("Authorization: Bearer")]
+	Task AddPhotoToAlbumAsync(int id, [Body] BackendAlbumItemRequest request);
+
+	[Delete("/api/albums/{id}/items/{photoId}")]
+	[Headers("Authorization: Bearer")]
+	Task RemovePhotoFromAlbumAsync(int id, int photoId);
+
 	// Health check
 	[Get("/health")]
 	Task<HealthResponse> GetHealthAsync();
@@ -71,6 +100,18 @@ public record BackendPhotoDto(
 	double? Latitude,
 	double? Longitude);
 
+public record BackendAlbumListResponse(
+	List<BackendAlbumDto> Albums);
+
+public record BackendAlbumDto(
+	int Id,
+	int UserId,
+	string Name,
+	int? CoverPhotoId,
+	DateTime CreatedAt,
+	DateTime UpdatedAt,
+	bool IsDeleted);
+
 public record HealthResponse(
 	string Status,
 	DateTime Timestamp,
@@ -84,3 +125,13 @@ public record BackendRegisterRequest(
 public record BackendLoginRequest(
 	string Email,
 	string Password);
+
+public record BackendAlbumCreateRequest(
+	string Name);
+
+public record BackendAlbumUpdateRequest(
+	string? Name,
+	int? CoverPhotoId);
+
+public record BackendAlbumItemRequest(
+	int PhotoId);

@@ -67,6 +67,8 @@ public record PhotosPageResponse(string? Cursor, bool HasMore, IReadOnlyList<Pho
 
 public record AlbumListResponse(IReadOnlyList<AlbumDto> Albums);
 
+public record AlbumPhotosResponse(IReadOnlyList<PhotoDto> Photos);
+
 public record FeedResponse(string? Cursor, bool HasMore, IReadOnlyList<FeedItemDto> Items);
 
 public record DownloadResponse(Uri Url);

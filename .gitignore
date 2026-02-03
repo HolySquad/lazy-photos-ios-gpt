@@ -421,3 +421,6 @@ FodyWeavers.xsd
 
 .idea/
 .dotnet_home/
+src/LazyPhotos.API/lazyphotos-dev.db
+src/LazyPhotos.API/lazyphotos-dev.db-shm
+src/LazyPhotos.API/lazyphotos-dev.db-wal

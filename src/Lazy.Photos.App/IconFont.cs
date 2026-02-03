@@ -22,6 +22,8 @@ public static class IconFont
     public const string Magnify = "\U000F0349";
     public const string ChartBar = "\U000F018D";
     public const string FolderMultipleImage = "\U000F10D3";
+    public const string Photos = "\U000F03DC";
+    public const string Albums = "\U000F0693";
 
     // Actions
     public const string Share = "\U000F0497";

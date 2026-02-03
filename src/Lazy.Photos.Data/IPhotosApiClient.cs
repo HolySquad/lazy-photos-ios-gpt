@@ -16,6 +16,12 @@ public interface IPhotosApiClient
 	Task<PhotoDto?> GetPhotoAsync(Guid photoId, CancellationToken ct);
 	Task DeletePhotoAsync(Guid photoId, CancellationToken ct);
 	Task<AlbumListResponse> GetAlbumsAsync(CancellationToken ct);
+	Task<AlbumDto> CreateAlbumAsync(AlbumCreateRequest request, CancellationToken ct);
+	Task<AlbumDto> UpdateAlbumAsync(Guid albumId, AlbumUpdateRequest request, CancellationToken ct);
+	Task DeleteAlbumAsync(Guid albumId, CancellationToken ct);
+	Task<AlbumPhotosResponse> GetAlbumPhotosAsync(Guid albumId, CancellationToken ct);
+	Task AddPhotoToAlbumAsync(Guid albumId, AlbumItemRequest request, CancellationToken ct);
+	Task RemovePhotoFromAlbumAsync(Guid albumId, Guid photoId, CancellationToken ct);
 	Task<FeedResponse> GetFeedAsync(string? cursor, int? limit, CancellationToken ct);
 	Task<ShareLinkResponse> CreateShareLinkAsync(ShareLinkCreateRequest request, CancellationToken ct);
 	Task RevokeShareLinkAsync(Guid shareLinkId, CancellationToken ct);
@@ -70,6 +76,38 @@ public sealed class PhotosApiClientStub : IPhotosApiClient
 
 	public Task<AlbumListResponse> GetAlbumsAsync(CancellationToken ct) =>
 		Task.FromResult(new AlbumListResponse(Array.Empty<AlbumDto>()));
+
+	public Task<AlbumDto> CreateAlbumAsync(AlbumCreateRequest request, CancellationToken ct) =>
+		Task.FromResult(new AlbumDto(
+			Id: Guid.NewGuid(),
+			UserId: Guid.Empty,
+			Name: request.Name,
+			CoverPhotoId: null,
+			CreatedAt: DateTimeOffset.UtcNow,
+			UpdatedAt: DateTimeOffset.UtcNow,
+			IsDeleted: false));
+
+	public Task<AlbumDto> UpdateAlbumAsync(Guid albumId, AlbumUpdateRequest request, CancellationToken ct) =>
+		Task.FromResult(new AlbumDto(
+			Id: albumId,
+			UserId: Guid.Empty,
+			Name: request.Name ?? "Album",
+			CoverPhotoId: request.CoverPhotoId,
+			CreatedAt: DateTimeOffset.UtcNow,
+			UpdatedAt: DateTimeOffset.UtcNow,
+			IsDeleted: false));
+
+	public Task DeleteAlbumAsync(Guid albumId, CancellationToken ct) =>
+		Task.CompletedTask;
+
+	public Task<AlbumPhotosResponse> GetAlbumPhotosAsync(Guid albumId, CancellationToken ct) =>
+		Task.FromResult(new AlbumPhotosResponse(Array.Empty<PhotoDto>()));
+
+	public Task AddPhotoToAlbumAsync(Guid albumId, AlbumItemRequest request, CancellationToken ct) =>
+		Task.CompletedTask;
+
+	public Task RemovePhotoFromAlbumAsync(Guid albumId, Guid photoId, CancellationToken ct) =>
+		Task.CompletedTask;
 
 	public Task<FeedResponse> GetFeedAsync(string? cursor, int? limit, CancellationToken ct) =>
 		Task.FromResult(new FeedResponse(cursor, false, Array.Empty<FeedItemDto>()));

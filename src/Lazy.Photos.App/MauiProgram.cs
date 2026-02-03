@@ -75,10 +75,14 @@ public static class MauiProgram
 			var dbPath = Path.Combine(FileSystem.AppDataDirectory, "photos-cache.db3");
 			return new PhotoCacheService(dbPath);
 		});
-		// Album Services (Mock - will be replaced with real API)
-		builder.Services.AddSingleton<IAlbumService, MockAlbumService>();
+		// Album Services
+		builder.Services.AddSingleton<IAlbumService, ApiAlbumService>();
 		builder.Services.AddTransient<AlbumsViewModel>();
 		builder.Services.AddTransient<AlbumsPage>();
+		builder.Services.AddTransient<AlbumDetailViewModel>();
+		builder.Services.AddTransient<AlbumDetailPage>();
+		builder.Services.AddTransient<AlbumPhotoPickerViewModel>();
+		builder.Services.AddTransient<AlbumPhotoPickerPage>();
 		builder.Services.AddTransient<SettingsViewModel>();
 		builder.Services.AddTransient<SettingsPage>();
 		builder.Services.AddSingleton<IPhotoNavigationService, PhotoNavigationService>();

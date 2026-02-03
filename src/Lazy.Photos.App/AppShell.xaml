@@ -16,17 +16,6 @@
               BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}"
               VerticalOptions="Center"
               HorizontalOptions="Fill">
-            <Button FontSize="24"
-                    TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}"
-                    BackgroundColor="Transparent"
-                    Command="{Binding ShowSignInCommand}"
-                    FontFamily="MaterialDesignIcons"
-                    Text="{x:Static local:IconFont.Menu}"
-                    VerticalOptions="Center"
-                    HorizontalOptions="Center"
-                    Padding="0"
-                    WidthRequest="44"
-                    HeightRequest="44" />
             <Label Grid.Column="1"
                    Text="Lazy Photos"
                    HorizontalTextAlignment="Center"
@@ -35,18 +24,6 @@
                    FontSize="18"
                    FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}" />
-            <Button Grid.Column="2"
-                    FontSize="24"
-                    TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}"
-                    BackgroundColor="Transparent"
-                    Command="{Binding ShowSignInCommand}"
-                    FontFamily="MaterialDesignIcons"
-                    Text="{x:Static local:IconFont.AccountCircle}"
-                    VerticalOptions="Center"
-                    HorizontalOptions="Center"
-                    Padding="0"
-                    WidthRequest="44"
-                    HeightRequest="44" />
         </Grid>
     </Shell.TitleView>
 
@@ -57,7 +34,7 @@
             Route="MainPage">
             <ShellContent.Icon>
                 <FontImageSource FontFamily="MaterialDesignIcons"
-                                 Glyph="{x:Static local:IconFont.ImageMultiple}"
+                                 Glyph="{x:Static local:IconFont.Photos}"
                                  Color="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
             </ShellContent.Icon>
         </ShellContent>
@@ -67,7 +44,7 @@
             Route="AlbumsPage">
             <ShellContent.Icon>
                 <FontImageSource FontFamily="MaterialDesignIcons"
-                                 Glyph="{x:Static local:IconFont.FolderMultipleImage}"
+                                 Glyph="{x:Static local:IconFont.Albums}"
                                  Color="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
             </ShellContent.Icon>
         </ShellContent>

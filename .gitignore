@@ -424,3 +424,6 @@ FodyWeavers.xsd
 src/LazyPhotos.API/lazyphotos-dev.db
 src/LazyPhotos.API/lazyphotos-dev.db-shm
 src/LazyPhotos.API/lazyphotos-dev.db-wal
+src/LazyPhotos.API/lazyphotos-dev.db
+src/LazyPhotos.API/.DS_Store
+src/.DS_Store

@@ -18,15 +18,16 @@
                            TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
                            VerticalOptions="Center" />
                     <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                        <Label Text="Not signed in"
+                        <Label Text="{Binding AccountTitle}"
                                FontSize="16"
                                FontAttributes="Bold" />
-                        <Label Text="Sign in to sync your photos"
+                        <Label Text="{Binding AccountSubtitle}"
                                FontSize="13"
                                TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
                     </VerticalStackLayout>
                     <Button Grid.Column="2"
-                            Text="Sign In"
+                            Text="{Binding AccountActionText}"
+                            Command="{Binding AccountActionCommand}"
                             BackgroundColor="{StaticResource Primary}"
                             TextColor="White"
                             CornerRadius="8"

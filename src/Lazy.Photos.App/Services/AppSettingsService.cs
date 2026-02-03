@@ -11,9 +11,15 @@ public sealed class AppSettingsService : IAppSettingsService
 	private const string RefreshTokenKey = "refresh_token";
 	private const string UserEmailKey = "user_email";
 	private const string FirstLaunchCompleteKey = "first_launch_complete";
+	private const string AutoSyncEnabledKey = "auto_sync_enabled";
+	private const string WifiOnlySyncKey = "wifi_only_sync";
+	private const string UploadQualityIndexKey = "upload_quality_index";
 
 	// Default API URL for development
 	private const string DefaultApiUrl = "http://localhost:5000";
+	private const bool DefaultAutoSyncEnabled = true;
+	private const bool DefaultWifiOnlySync = true;
+	private const int DefaultUploadQualityIndex = 0;
 
 	// API Configuration
 	public Task<string?> GetApiUrlAsync()
@@ -121,6 +127,42 @@ public sealed class AppSettingsService : IAppSettingsService
 	public Task SetUserEmailAsync(string email)
 	{
 		Preferences.Default.Set(UserEmailKey, email);
+		return Task.CompletedTask;
+	}
+
+	public Task<bool> GetAutoSyncEnabledAsync()
+	{
+		var enabled = Preferences.Default.Get(AutoSyncEnabledKey, DefaultAutoSyncEnabled);
+		return Task.FromResult(enabled);
+	}
+
+	public Task SetAutoSyncEnabledAsync(bool enabled)
+	{
+		Preferences.Default.Set(AutoSyncEnabledKey, enabled);
+		return Task.CompletedTask;
+	}
+
+	public Task<bool> GetWifiOnlySyncAsync()
+	{
+		var enabled = Preferences.Default.Get(WifiOnlySyncKey, DefaultWifiOnlySync);
+		return Task.FromResult(enabled);
+	}
+
+	public Task SetWifiOnlySyncAsync(bool enabled)
+	{
+		Preferences.Default.Set(WifiOnlySyncKey, enabled);
+		return Task.CompletedTask;
+	}
+
+	public Task<int> GetUploadQualityIndexAsync()
+	{
+		var index = Preferences.Default.Get(UploadQualityIndexKey, DefaultUploadQualityIndex);
+		return Task.FromResult(index);
+	}
+
+	public Task SetUploadQualityIndexAsync(int index)
+	{
+		Preferences.Default.Set(UploadQualityIndexKey, index);
 		return Task.CompletedTask;
 	}
 }

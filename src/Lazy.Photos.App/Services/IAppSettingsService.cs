@@ -22,4 +22,12 @@ public interface IAppSettingsService
 	Task SetFirstLaunchCompleteAsync();
 	Task<string?> GetUserEmailAsync();
 	Task SetUserEmailAsync(string email);
+
+	// Sync Preferences
+	Task<bool> GetAutoSyncEnabledAsync();
+	Task SetAutoSyncEnabledAsync(bool enabled);
+	Task<bool> GetWifiOnlySyncAsync();
+	Task SetWifiOnlySyncAsync(bool enabled);
+	Task<int> GetUploadQualityIndexAsync();
+	Task SetUploadQualityIndexAsync(int index);
 }

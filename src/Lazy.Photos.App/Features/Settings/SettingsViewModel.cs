@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Lazy.Photos.App.Features.Photos.Services;
 using Lazy.Photos.App.Services;
+using Microsoft.Maui.ApplicationModel;
 
 namespace Lazy.Photos.App.Features.Settings;
 
@@ -11,7 +12,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IPhotoLibraryService _photoLibraryService;
     private readonly IPhotoCacheMaintenance _cacheMaintenance;
     private readonly IAppSettingsService _appSettingsService;
+    private readonly IAuthenticationService _authService;
     private CancellationTokenSource? _loadCts;
+    private bool _isLoadingPreferences;
 
     [ObservableProperty]
     private bool autoSyncEnabled = true;
@@ -35,6 +38,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnSelectedUploadQualityIndexChanged(int value)
     {
         OnPropertyChanged(nameof(SelectedUploadQualityDescription));
+        if (_isLoadingPreferences)
+            return;
+        _ = _appSettingsService.SetUploadQualityIndexAsync(value);
     }
 
     [ObservableProperty]
@@ -70,30 +76,61 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private Color connectionStatusColor = Colors.Gray;
 
+    [ObservableProperty]
+    private string accountTitle = "Not signed in";
+
+    [ObservableProperty]
+    private string accountSubtitle = "Sign in to sync your photos";
+
+    [ObservableProperty]
+    private string accountActionText = "Sign In";
+
+    [ObservableProperty]
+    private bool isSignedIn;
+
     public bool IsNotIndexing => !IsIndexing;
     public bool IsNotTesting => !IsTestingConnection;
     public bool HasStatus => !string.IsNullOrEmpty(Status);
     public bool HasConnectionStatus => !string.IsNullOrEmpty(ConnectionStatus);
-    public string AppVersion => "1.0.0";
+    public string AppVersion => $"{AppInfo.Current.VersionString} ({AppInfo.Current.BuildString})";
 
     public SettingsViewModel(
         IPhotoCacheService photoCacheService,
         IPhotoLibraryService photoLibraryService,
         IPhotoCacheMaintenance cacheMaintenance,
-        IAppSettingsService appSettingsService)
+        IAppSettingsService appSettingsService,
+        IAuthenticationService authService)
     {
         _photoCacheService = photoCacheService;
         _photoLibraryService = photoLibraryService;
         _cacheMaintenance = cacheMaintenance;
         _appSettingsService = appSettingsService;
+        _authService = authService;
 
         // Load API URL on initialization
         _ = LoadApiUrlAsync();
+        _ = LoadPreferencesAsync();
     }
 
     private async Task LoadApiUrlAsync()
     {
         ApiUrl = await _appSettingsService.GetApiUrlAsync() ?? "http://localhost:5000";
+    }
+
+    private async Task LoadPreferencesAsync()
+    {
+        _isLoadingPreferences = true;
+        try
+        {
+            AutoSyncEnabled = await _appSettingsService.GetAutoSyncEnabledAsync();
+            WifiOnlySync = await _appSettingsService.GetWifiOnlySyncAsync();
+            var index = await _appSettingsService.GetUploadQualityIndexAsync();
+            SelectedUploadQualityIndex = Math.Clamp(index, 0, UploadQualityOptions.Count - 1);
+        }
+        finally
+        {
+            _isLoadingPreferences = false;
+        }
     }
 
     partial void OnIsIndexingChanged(bool value)
@@ -114,6 +151,47 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnConnectionStatusChanged(string value)
     {
         OnPropertyChanged(nameof(HasConnectionStatus));
+    }
+
+    partial void OnAutoSyncEnabledChanged(bool value)
+    {
+        if (_isLoadingPreferences)
+            return;
+        _ = _appSettingsService.SetAutoSyncEnabledAsync(value);
+    }
+
+    partial void OnWifiOnlySyncChanged(bool value)
+    {
+        if (_isLoadingPreferences)
+            return;
+        _ = _appSettingsService.SetWifiOnlySyncAsync(value);
+    }
+
+    public async Task InitializeAsync()
+    {
+        await LoadAccountAsync();
+        await RefreshAsync();
+    }
+
+    private async Task LoadAccountAsync()
+    {
+        var isAuthenticated = await _authService.IsAuthenticatedAsync();
+        var email = await _authService.GetCurrentUserEmailAsync();
+
+        IsSignedIn = isAuthenticated;
+
+        if (isAuthenticated)
+        {
+            AccountTitle = string.IsNullOrWhiteSpace(email) ? "Signed in" : email;
+            AccountSubtitle = "Account connected";
+            AccountActionText = "Sign Out";
+        }
+        else
+        {
+            AccountTitle = "Not signed in";
+            AccountSubtitle = "Sign in to sync your photos";
+            AccountActionText = "Sign In";
+        }
     }
 
     [RelayCommand]
@@ -238,6 +316,21 @@ public sealed partial class SettingsViewModel : ObservableObject
 
         // Clear connection status after save
         ConnectionStatus = string.Empty;
+    }
+
+    [RelayCommand]
+    private async Task AccountActionAsync()
+    {
+        if (IsSignedIn)
+        {
+            await _authService.LogoutAsync();
+            await _appSettingsService.SetUserEmailAsync(string.Empty);
+            await LoadAccountAsync();
+            Status = "Signed out";
+            return;
+        }
+
+        await Shell.Current.GoToAsync("onboarding");
     }
 
     private static Task<string> GetThumbnailCacheSizeAsync()

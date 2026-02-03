@@ -4,9 +4,11 @@ using Lazy.Photos.App.Features.Photos;
 using Lazy.Photos.App.Features.Photos.Services;
 using Lazy.Photos.App.Features.Photos.UseCases;
 using Lazy.Photos.App.Features.Settings;
+using Lazy.Photos.App.Services;
 using Lazy.Photos.Data;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Storage;
+using Refit;
 
 namespace Lazy.Photos.App;
 
@@ -28,9 +30,41 @@ public static class MauiProgram
 		// Device Profile Service (must be registered first - other services depend on it)
 		builder.Services.AddSingleton<IDeviceProfileService, DeviceProfileService>();
 
+		// App Settings and Authentication
+		builder.Services.AddSingleton<IAppSettingsService, AppSettingsService>();
+		builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
+
+		// Auth Token Provider with function-based injection to avoid circular dependencies
+		builder.Services.AddSingleton<IAuthTokenProvider>(sp =>
+		{
+			var settingsService = sp.GetRequiredService<IAppSettingsService>();
+			return new SecureAuthTokenProvider(() => settingsService.GetAccessTokenAsync());
+		});
+
+		// Register AuthorizationHandler as transient
+		builder.Services.AddTransient<AuthorizationHandler>();
+
+		// Configure Refit API client
+		builder.Services.AddRefitClient<ILazyPhotosApi>()
+			.ConfigureHttpClient(async (sp, client) =>
+			{
+				// Get API URL from settings
+				var settings = sp.GetRequiredService<IAppSettingsService>();
+				var apiUrl = await settings.GetApiUrlAsync();
+				client.BaseAddress = new Uri(apiUrl ?? "http://localhost:5000");
+				client.Timeout = TimeSpan.FromSeconds(30);
+			})
+			.AddHttpMessageHandler<AuthorizationHandler>()
+			.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+			{
+				AutomaticDecompression = System.Net.DecompressionMethods.All
+			});
+
+		// Register adapter that wraps Refit client
+		builder.Services.AddSingleton<IPhotosApiClient, PhotosApiClient>();
+
 		builder.Services.AddSingleton<IPhotoLibraryService, PhotoLibraryService>();
 		builder.Services.AddSingleton<IPhotoSyncService, PhotoSyncService>();
-		builder.Services.AddSingleton<IPhotosApiClient, PhotosApiClientStub>();
 		builder.Services.AddSingleton<IPhotoCacheService>(_ =>
 		{
 			var dbPath = Path.Combine(FileSystem.AppDataDirectory, "photos-cache.db3");

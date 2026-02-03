@@ -35,6 +35,43 @@
                 </Grid>
             </Border>
 
+            <!-- Server Configuration Section -->
+            <Label Text="Server"
+                   FontSize="14"
+                   FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}"
+                   Margin="0,8,0,0" />
+
+            <Border StrokeShape="RoundRectangle 12"
+                    Padding="16">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="API Server URL" FontSize="14" FontAttributes="Bold" />
+                    <Entry Text="{Binding ApiUrl}"
+                           Placeholder="http://localhost:5000"
+                           Keyboard="Url"
+                           FontSize="14" />
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Button Text="Test Connection"
+                                Command="{Binding TestConnectionCommand}"
+                                IsEnabled="{Binding IsNotTesting}" />
+                        <ActivityIndicator Grid.Column="1"
+                                          IsRunning="{Binding IsTestingConnection}"
+                                          IsVisible="{Binding IsTestingConnection}" />
+                    </Grid>
+
+                    <Label Text="{Binding ConnectionStatus}"
+                           FontSize="12"
+                           TextColor="{Binding ConnectionStatusColor}"
+                           IsVisible="{Binding HasConnectionStatus}" />
+
+                    <Button Text="Save Server URL"
+                            Command="{Binding SaveApiUrlCommand}"
+                            BackgroundColor="{StaticResource Primary}"
+                            TextColor="White" />
+                </VerticalStackLayout>
+            </Border>
+
             <!-- Settings Options -->
             <Label Text="General"
                    FontSize="14"

@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Lazy.Photos.App.Features.Photos.Services;
+using Lazy.Photos.App.Services;
 
 namespace Lazy.Photos.App.Features.Settings;
 
@@ -9,6 +10,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IPhotoCacheService _photoCacheService;
     private readonly IPhotoLibraryService _photoLibraryService;
     private readonly IPhotoCacheMaintenance _cacheMaintenance;
+    private readonly IAppSettingsService _appSettingsService;
     private CancellationTokenSource? _loadCts;
 
     [ObservableProperty]
@@ -56,18 +58,42 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty]
     private bool isIndexing;
 
+    [ObservableProperty]
+    private string apiUrl = string.Empty;
+
+    [ObservableProperty]
+    private bool isTestingConnection;
+
+    [ObservableProperty]
+    private string connectionStatus = string.Empty;
+
+    [ObservableProperty]
+    private Color connectionStatusColor = Colors.Gray;
+
     public bool IsNotIndexing => !IsIndexing;
+    public bool IsNotTesting => !IsTestingConnection;
     public bool HasStatus => !string.IsNullOrEmpty(Status);
+    public bool HasConnectionStatus => !string.IsNullOrEmpty(ConnectionStatus);
     public string AppVersion => "1.0.0";
 
     public SettingsViewModel(
         IPhotoCacheService photoCacheService,
         IPhotoLibraryService photoLibraryService,
-        IPhotoCacheMaintenance cacheMaintenance)
+        IPhotoCacheMaintenance cacheMaintenance,
+        IAppSettingsService appSettingsService)
     {
         _photoCacheService = photoCacheService;
         _photoLibraryService = photoLibraryService;
         _cacheMaintenance = cacheMaintenance;
+        _appSettingsService = appSettingsService;
+
+        // Load API URL on initialization
+        _ = LoadApiUrlAsync();
+    }
+
+    private async Task LoadApiUrlAsync()
+    {
+        ApiUrl = await _appSettingsService.GetApiUrlAsync() ?? "http://localhost:5000";
     }
 
     partial void OnIsIndexingChanged(bool value)
@@ -75,9 +101,19 @@ public sealed partial class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(IsNotIndexing));
     }
 
+    partial void OnIsTestingConnectionChanged(bool value)
+    {
+        OnPropertyChanged(nameof(IsNotTesting));
+    }
+
     partial void OnStatusChanged(string value)
     {
         OnPropertyChanged(nameof(HasStatus));
+    }
+
+    partial void OnConnectionStatusChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasConnectionStatus));
     }
 
     [RelayCommand]
@@ -158,6 +194,50 @@ public sealed partial class SettingsViewModel : ObservableObject
         {
             IsIndexing = false;
         }
+    }
+
+    [RelayCommand]
+    private async Task TestConnectionAsync()
+    {
+        IsTestingConnection = true;
+        ConnectionStatus = "Testing...";
+        ConnectionStatusColor = Colors.Gray;
+
+        try
+        {
+            var httpClient = new HttpClient { BaseAddress = new Uri(ApiUrl) };
+            var response = await httpClient.GetAsync("/health");
+
+            if (response.IsSuccessStatusCode)
+            {
+                ConnectionStatus = "✓ Connected successfully";
+                ConnectionStatusColor = Colors.Green;
+            }
+            else
+            {
+                ConnectionStatus = "✗ Server responded with error";
+                ConnectionStatusColor = Colors.Red;
+            }
+        }
+        catch (Exception ex)
+        {
+            ConnectionStatus = $"✗ Connection failed: {ex.Message}";
+            ConnectionStatusColor = Colors.Red;
+        }
+        finally
+        {
+            IsTestingConnection = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task SaveApiUrlAsync()
+    {
+        await _appSettingsService.SetApiUrlAsync(ApiUrl);
+        Status = "Server URL saved. Restart app to apply changes.";
+
+        // Clear connection status after save
+        ConnectionStatus = string.Empty;
     }
 
     private static Task<string> GetThumbnailCacheSizeAsync()

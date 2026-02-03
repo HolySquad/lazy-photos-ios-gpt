@@ -5,6 +5,7 @@ namespace Lazy.Photos.Data;
 public interface IPhotosApiClient
 {
 	Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken ct);
+	Task<RegisterResponse> RegisterAsync(RegisterRequest request, CancellationToken ct);
 	Task<RefreshResponse> RefreshAsync(RefreshRequest request, CancellationToken ct);
 	Task<DeviceRegisterResponse> RegisterDeviceAsync(DeviceRegisterRequest request, CancellationToken ct);
 	Task<ServerClaimResponse> ClaimServerAsync(ServerClaimRequest request, CancellationToken ct);
@@ -26,6 +27,14 @@ public sealed class PhotosApiClientStub : IPhotosApiClient
 {
 	public Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken ct) =>
 		Task.FromResult(new LoginResponse("stub-token", "stub-refresh", new Lazy.Photos.Core.Models.User
+		{
+			Id = Guid.Empty,
+			Email = request.Email,
+			CreatedAt = DateTimeOffset.UtcNow
+		}));
+
+	public Task<RegisterResponse> RegisterAsync(RegisterRequest request, CancellationToken ct) =>
+		Task.FromResult(new RegisterResponse("stub-token", "stub-refresh", new Lazy.Photos.Core.Models.User
 		{
 			Id = Guid.Empty,
 			Email = request.Email,

@@ -104,6 +104,12 @@
 - Server URL configuration
 - Connection test
 
+## Onboarding & Authentication (App)
+- Welcome step with privacy and self-hosted messaging
+- Server connection step with URL entry, presets, and connection test
+- Account step with sign-in and registration (display name, email, password, confirm)
+- Skip onboarding option to enter the app without signing in
+
 ## API Endpoints
 
 ### Authentication

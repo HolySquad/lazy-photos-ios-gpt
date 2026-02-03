@@ -45,11 +45,23 @@ public sealed class AuthenticationService : IAuthenticationService
 		}
 	}
 
-	public Task<AuthResult> RegisterAsync(string email, string password, string displayName)
+	public async Task<AuthResult> RegisterAsync(string email, string password, string displayName)
 	{
-		// TODO: Add RegisterAsync to IPhotosApiClient interface
-		// For now, registration is not implemented
-		return Task.FromResult(new AuthResult(false, "Registration not yet implemented in mobile client. Please use login.", null));
+		try
+		{
+			var request = new RegisterRequest(email, password, displayName);
+			var response = await _apiClient.RegisterAsync(request, CancellationToken.None);
+
+			await _settingsService.SetAccessTokenAsync(response.AccessToken);
+			await _settingsService.SetRefreshTokenAsync(response.RefreshToken);
+			await _settingsService.SetUserEmailAsync(email);
+
+			return new AuthResult(true, null, response.User);
+		}
+		catch (Exception ex)
+		{
+			return new AuthResult(false, ex.Message, null);
+		}
 	}
 
 	public async Task LogoutAsync()

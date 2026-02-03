@@ -45,12 +45,12 @@ public static class MauiProgram
 		builder.Services.AddTransient<AuthorizationHandler>();
 
 		// Configure Refit API client
+		// Note: HttpClient configuration happens lazily when first requested, not at startup
 		builder.Services.AddRefitClient<ILazyPhotosApi>()
-			.ConfigureHttpClient(async (sp, client) =>
+			.ConfigureHttpClient((sp, client) =>
 			{
-				// Get API URL from settings
-				var settings = sp.GetRequiredService<IAppSettingsService>();
-				var apiUrl = await settings.GetApiUrlAsync();
+				// Get API URL from Preferences (synchronous operation)
+				var apiUrl = Preferences.Default.Get("api_url", "http://localhost:5000");
 				client.BaseAddress = new Uri(apiUrl ?? "http://localhost:5000");
 				client.Timeout = TimeSpan.FromSeconds(30);
 			})
@@ -101,6 +101,11 @@ public static class MauiProgram
 		builder.Services.AddTransient<MainPage>();
 		builder.Services.AddTransient<PhotoViewerViewModel>();
 		builder.Services.AddTransient<PhotoViewerPage>();
+
+		// Onboarding
+		builder.Services.AddTransient<Features.Onboarding.OnboardingViewModel>();
+		builder.Services.AddTransient<Features.Onboarding.OnboardingPage>();
+
 		builder.Services.AddSingleton<AppShell>();
 
 #if DEBUG

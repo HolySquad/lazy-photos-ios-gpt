@@ -6,6 +6,10 @@ public record LoginRequest(string Email, string Password);
 
 public record LoginResponse(string AccessToken, string RefreshToken, User User);
 
+public record RegisterRequest(string Email, string Password, string DisplayName);
+
+public record RegisterResponse(string AccessToken, string RefreshToken, User User);
+
 public record RefreshRequest(string RefreshToken);
 
 public record RefreshResponse(string AccessToken);

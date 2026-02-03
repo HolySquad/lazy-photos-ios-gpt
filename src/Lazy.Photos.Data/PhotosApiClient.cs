@@ -32,6 +32,22 @@ public sealed class PhotosApiClient : IPhotosApiClient
 			});
 	}
 
+	public async Task<Contracts.RegisterResponse> RegisterAsync(Contracts.RegisterRequest request, CancellationToken ct)
+	{
+		var backendRequest = new BackendRegisterRequest(request.Email, request.Password, request.DisplayName);
+		var response = await _api.RegisterAsync(backendRequest);
+
+		return new Contracts.RegisterResponse(
+			AccessToken: response.Token,
+			RefreshToken: response.Token, // Backend doesn't have refresh token yet
+			User: new User
+			{
+				Id = ConvertIntToGuid(response.User.Id),
+				Email = response.User.Email,
+				CreatedAt = DateTimeOffset.UtcNow
+			});
+	}
+
 	public async Task<PhotosPageResponse> GetPhotosAsync(string? cursor, int? limit, CancellationToken ct)
 	{
 		var page = string.IsNullOrEmpty(cursor) ? 1 : int.Parse(cursor);

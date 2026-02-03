@@ -18,6 +18,11 @@
     <Color x:Key="MidnightBlue">#190649</Color>
     <Color x:Key="OffBlack">#1f1f1f</Color>
 
+    <!-- Status Colors -->
+    <Color x:Key="Danger">#DC3545</Color>
+    <Color x:Key="Success">#28A745</Color>
+    <Color x:Key="Warning">#FFC107</Color>
+
     <Color x:Key="Gray100">#E1E1E1</Color>
     <Color x:Key="Gray200">#C8C8C8</Color>
     <Color x:Key="Gray300">#ACACAC</Color>

@@ -18,6 +18,15 @@
             <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
             <converters:IsNotNullOrEmptyConverter x:Key="IsNotNullOrEmptyConverter" />
             <converters:SyncStatusColorConverter x:Key="SyncStatusColorConverter" />
+
+            <!-- Onboarding Converters -->
+            <converters:StringNotEmptyConverter x:Key="StringNotEmptyConverter" />
+            <converters:EqualToConverter x:Key="EqualToConverter" />
+            <converters:GreaterThanConverter x:Key="GreaterThanConverter" />
+            <converters:LessThanConverter x:Key="LessThanConverter" />
+            <converters:StepToProgressConverter x:Key="StepToProgressConverter" />
+            <converters:StepToBackButtonTextConverter x:Key="StepToBackButtonTextConverter" />
+            <converters:StepToNextButtonTextConverter x:Key="StepToNextButtonTextConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

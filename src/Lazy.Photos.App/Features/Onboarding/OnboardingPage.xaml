@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:Lazy.Photos.App.Features.Onboarding"
+             x:Class="Lazy.Photos.App.Features.Onboarding.OnboardingPage"
+             x:DataType="vm:OnboardingViewModel"
+             Shell.NavBarIsVisible="False"
+             BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}">
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="20">
+
+        <!-- Progress Indicator -->
+        <ProgressBar Grid.Row="0"
+                     Progress="{Binding CurrentStep, Converter={StaticResource StepToProgressConverter}}"
+                     ProgressColor="{StaticResource Primary}"
+                     Margin="0,10,0,20" />
+
+        <!-- Content Area -->
+        <ScrollView Grid.Row="1">
+            <StackLayout Spacing="20">
+
+                <!-- Step 0: Welcome -->
+                <VerticalStackLayout IsVisible="{Binding CurrentStep, Converter={StaticResource EqualToConverter}, ConverterParameter=0}"
+                                     Spacing="20" VerticalOptions="Center">
+                    <Label Text="📷"
+                           FontSize="80"
+                           HorizontalTextAlignment="Center" />
+                    <Label Text="Welcome to Lazy Photos"
+                           FontSize="28" FontAttributes="Bold"
+                           HorizontalTextAlignment="Center" />
+                    <Label Text="Your photos, self-hosted and private"
+                           FontSize="16"
+                           HorizontalTextAlignment="Center"
+                           TextColor="{StaticResource Gray600}" />
+                    <Label Text="Store your memories on your own server, under your control."
+                           FontSize="14"
+                           HorizontalTextAlignment="Center"
+                           Margin="0,20,0,0"
+                           TextColor="{StaticResource Gray500}" />
+                </VerticalStackLayout>
+
+                <!-- Step 1: Server Configuration -->
+                <VerticalStackLayout IsVisible="{Binding CurrentStep, Converter={StaticResource EqualToConverter}, ConverterParameter=1}"
+                                     Spacing="16">
+                    <Label Text="Connect to Your Server"
+                           FontSize="24" FontAttributes="Bold" />
+                    <Label Text="Enter your server URL to sync photos"
+                           FontSize="14"
+                           TextColor="{StaticResource Gray600}" />
+
+                    <Label Text="Server URL" FontSize="14" FontAttributes="Bold" Margin="0,10,0,0" />
+                    <Entry Text="{Binding ApiUrl}"
+                           Placeholder="http://your-server:5000"
+                           Keyboard="Url"
+                           FontSize="14" />
+
+                    <Label Text="Quick Presets" FontSize="14" FontAttributes="Bold" Margin="0,10,0,0" />
+                    <HorizontalStackLayout Spacing="8">
+                        <Button Text="Local"
+                                Command="{Binding SetPresetUrlCommand}"
+                                CommandParameter="local"
+                                HorizontalOptions="FillAndExpand" />
+                        <Button Text="Raspberry Pi"
+                                Command="{Binding SetPresetUrlCommand}"
+                                CommandParameter="pi"
+                                HorizontalOptions="FillAndExpand" />
+                    </HorizontalStackLayout>
+
+                    <Button Text="Test Connection"
+                            Command="{Binding TestConnectionCommand}"
+                            IsEnabled="{Binding IsNotTesting}"
+                            Margin="0,10,0,0" />
+
+                    <ActivityIndicator IsRunning="{Binding IsTestingConnection}"
+                                      IsVisible="{Binding IsTestingConnection}"
+                                      Color="{StaticResource Primary}" />
+
+                    <Label Text="{Binding ConnectionStatus}"
+                           TextColor="{Binding ConnectionStatusColor}"
+                           IsVisible="{Binding HasConnectionStatus}"
+                           FontSize="14"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+
+                <!-- Step 2: Account -->
+                <VerticalStackLayout IsVisible="{Binding CurrentStep, Converter={StaticResource EqualToConverter}, ConverterParameter=2}"
+                                     Spacing="16">
+                    <!-- Sign In -->
+                    <VerticalStackLayout IsVisible="{Binding IsRegisterMode, Converter={StaticResource InverseBooleanConverter}}"
+                                         Spacing="16">
+                        <Label Text="Sign In to Sync Photos"
+                               FontSize="24" FontAttributes="Bold" />
+                        <Label Text="Use your account credentials"
+                               FontSize="14"
+                               TextColor="{StaticResource Gray600}" />
+
+                        <Label Text="Email" FontSize="14" FontAttributes="Bold" Margin="0,10,0,0" />
+                        <Entry Text="{Binding Email}"
+                               Placeholder="your@email.com"
+                               Keyboard="Email"
+                               FontSize="14" />
+
+                        <Label Text="Password" FontSize="14" FontAttributes="Bold" Margin="0,10,0,0" />
+                        <Entry Text="{Binding Password}"
+                               Placeholder="Password"
+                               IsPassword="True"
+                               FontSize="14" />
+
+                        <Label Text="{Binding ErrorMessage}"
+                               TextColor="{StaticResource Danger}"
+                               IsVisible="{Binding HasErrorMessage}"
+                               FontSize="12"
+                               Margin="0,10,0,0" />
+
+                        <Button Text="Sign In"
+                                Command="{Binding SignInCommand}"
+                                IsEnabled="{Binding IsNotSigningIn}"
+                                Margin="0,10,0,0" />
+
+                        <ActivityIndicator IsRunning="{Binding IsSigningIn}"
+                                          IsVisible="{Binding IsSigningIn}"
+                                          Color="{StaticResource Primary}" />
+
+                        <Button Text="Create an account"
+                                Command="{Binding ShowRegisterCommand}"
+                                BackgroundColor="Transparent"
+                                TextColor="{StaticResource Primary}"
+                                BorderWidth="0" />
+                    </VerticalStackLayout>
+
+                    <!-- Register -->
+                    <VerticalStackLayout IsVisible="{Binding IsRegisterMode}"
+                                         Spacing="16">
+                        <Label Text="Create Your Account"
+                               FontSize="24" FontAttributes="Bold" />
+                        <Label Text="Set up your account to start syncing"
+                               FontSize="14"
+                               TextColor="{StaticResource Gray600}" />
+
+                        <Label Text="Display Name" FontSize="14" FontAttributes="Bold" Margin="0,10,0,0" />
+                        <Entry Text="{Binding DisplayName}"
+                               Placeholder="Your name"
+                               FontSize="14" />
+
+                        <Label Text="Email" FontSize="14" FontAttributes="Bold" Margin="0,10,0,0" />
+                        <Entry Text="{Binding Email}"
+                               Placeholder="your@email.com"
+                               Keyboard="Email"
+                               FontSize="14" />
+
+                        <Label Text="Password" FontSize="14" FontAttributes="Bold" Margin="0,10,0,0" />
+                        <Entry Text="{Binding Password}"
+                               Placeholder="Password"
+                               IsPassword="True"
+                               FontSize="14" />
+
+                        <Label Text="Confirm Password" FontSize="14" FontAttributes="Bold" Margin="0,10,0,0" />
+                        <Entry Text="{Binding ConfirmPassword}"
+                               Placeholder="Confirm password"
+                               IsPassword="True"
+                               FontSize="14" />
+
+                        <Label Text="{Binding ErrorMessage}"
+                               TextColor="{StaticResource Danger}"
+                               IsVisible="{Binding HasErrorMessage}"
+                               FontSize="12"
+                               Margin="0,10,0,0" />
+
+                        <Button Text="Create Account"
+                                Command="{Binding RegisterCommand}"
+                                IsEnabled="{Binding IsNotRegistering}"
+                                Margin="0,10,0,0" />
+
+                        <ActivityIndicator IsRunning="{Binding IsRegistering}"
+                                          IsVisible="{Binding IsRegistering}"
+                                          Color="{StaticResource Primary}" />
+
+                        <Button Text="Already have an account? Sign in"
+                                Command="{Binding ShowSignInCommand}"
+                                BackgroundColor="Transparent"
+                                TextColor="{StaticResource Primary}"
+                                BorderWidth="0" />
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+
+            </StackLayout>
+        </ScrollView>
+
+        <!-- Navigation Buttons -->
+        <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,20,0,10">
+
+            <!-- Back / Skip button (left) -->
+            <Button Grid.Column="0"
+                    Text="Back"
+                    Command="{Binding PreviousStepCommand}"
+                    IsVisible="{Binding CurrentStep, Converter={StaticResource GreaterThanConverter}, ConverterParameter=0}"
+                    BackgroundColor="Transparent"
+                    TextColor="{StaticResource Gray600}"
+                    BorderWidth="1"
+                    BorderColor="{StaticResource Gray300}" />
+
+            <Button Grid.Column="0"
+                    Text="Skip Setup"
+                    Command="{Binding SkipToMainAppCommand}"
+                    IsVisible="{Binding CurrentStep, Converter={StaticResource EqualToConverter}, ConverterParameter=0}"
+                    BackgroundColor="Transparent"
+                    TextColor="{StaticResource Gray600}"
+                    BorderWidth="1"
+                    BorderColor="{StaticResource Gray300}" />
+
+            <!-- Continue / Skip button (right) -->
+            <Button Grid.Column="1"
+                    Text="{Binding CurrentStep, Converter={StaticResource StepToNextButtonTextConverter}}"
+                    Command="{Binding NextStepCommand}"
+                    IsVisible="{Binding CurrentStep, Converter={StaticResource LessThanConverter}, ConverterParameter=2}"
+                    BackgroundColor="{StaticResource Primary}"
+                    TextColor="White" />
+
+            <Button Grid.Column="1"
+                    Text="Skip for Now"
+                    Command="{Binding SkipToMainAppCommand}"
+                    IsVisible="{Binding CurrentStep, Converter={StaticResource EqualToConverter}, ConverterParameter=2}"
+                    BackgroundColor="Transparent"
+                    TextColor="{StaticResource Gray600}"
+                    BorderWidth="1"
+                    BorderColor="{StaticResource Gray300}" />
+        </Grid>
+    </Grid>
+</ContentPage>

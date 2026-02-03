@@ -63,28 +63,46 @@ public sealed class PhotoCacheService : IPhotoCacheService, IPhotoCacheMaintenan
 		await connection.OpenAsync(ct);
 
 		await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(ct);
-		var delete = connection.CreateCommand();
-		delete.Transaction = transaction;
-		delete.CommandText = "DELETE FROM Photos";
-		await delete.ExecuteNonQueryAsync(ct);
+
+		// Create single command with UPSERT, reuse for all photos
+		await using var upsert = connection.CreateCommand();
+		upsert.Transaction = transaction;
+		upsert.CommandText = """
+			INSERT INTO Photos (Id, DisplayName, TakenAtTicks, Hash, FolderName, ThumbUri, FullUri, IsSynced)
+			VALUES ($id, $name, $ticks, $hash, $folder, $thumb, $full, $synced)
+			ON CONFLICT(Id) DO UPDATE SET
+				DisplayName = excluded.DisplayName,
+				TakenAtTicks = excluded.TakenAtTicks,
+				Hash = excluded.Hash,
+				FolderName = excluded.FolderName,
+				ThumbUri = excluded.ThumbUri,
+				FullUri = excluded.FullUri,
+				IsSynced = excluded.IsSynced
+			""";
+
+		// Add parameters once
+		upsert.Parameters.Add("$id", SqliteType.Text);
+		upsert.Parameters.Add("$name", SqliteType.Text);
+		upsert.Parameters.Add("$ticks", SqliteType.Integer);
+		upsert.Parameters.Add("$hash", SqliteType.Text);
+		upsert.Parameters.Add("$folder", SqliteType.Text);
+		upsert.Parameters.Add("$thumb", SqliteType.Text);
+		upsert.Parameters.Add("$full", SqliteType.Text);
+		upsert.Parameters.Add("$synced", SqliteType.Integer);
 
 		foreach (var photo in photos)
 		{
-			await using var insert = connection.CreateCommand();
-			insert.Transaction = transaction;
-			insert.CommandText = """
-				INSERT INTO Photos (Id, DisplayName, TakenAtTicks, Hash, FolderName, ThumbUri, FullUri, IsSynced)
-				VALUES ($id, $name, $ticks, $hash, $folder, $thumb, $full, $synced)
-				""";
-			insert.Parameters.AddWithValue("$id", photo.Id ?? Guid.NewGuid().ToString());
-			insert.Parameters.AddWithValue("$name", photo.DisplayName ?? (object)DBNull.Value);
-			insert.Parameters.AddWithValue("$ticks", photo.TakenAt?.UtcTicks ?? 0);
-			insert.Parameters.AddWithValue("$hash", photo.Hash ?? (object)DBNull.Value);
-			insert.Parameters.AddWithValue("$folder", photo.FolderName ?? (object)DBNull.Value);
-			insert.Parameters.AddWithValue("$thumb", ToUriString(photo.Thumbnail) ?? (object)DBNull.Value);
-			insert.Parameters.AddWithValue("$full", ToUriString(photo.FullImage) ?? (object)DBNull.Value);
-			insert.Parameters.AddWithValue("$synced", photo.IsSynced);
-			await insert.ExecuteNonQueryAsync(ct);
+			// Reuse command, update parameter values only
+			upsert.Parameters["$id"].Value = photo.Id ?? Guid.NewGuid().ToString();
+			upsert.Parameters["$name"].Value = photo.DisplayName ?? (object)DBNull.Value;
+			upsert.Parameters["$ticks"].Value = photo.TakenAt?.UtcTicks ?? 0;
+			upsert.Parameters["$hash"].Value = photo.Hash ?? (object)DBNull.Value;
+			upsert.Parameters["$folder"].Value = photo.FolderName ?? (object)DBNull.Value;
+			upsert.Parameters["$thumb"].Value = ToUriString(photo.Thumbnail) ?? (object)DBNull.Value;
+			upsert.Parameters["$full"].Value = ToUriString(photo.FullImage) ?? (object)DBNull.Value;
+			upsert.Parameters["$synced"].Value = photo.IsSynced;
+
+			await upsert.ExecuteNonQueryAsync(ct);
 		}
 
 		await transaction.CommitAsync(ct);
@@ -114,6 +132,9 @@ public sealed class PhotoCacheService : IPhotoCacheService, IPhotoCacheMaintenan
 				FullUri TEXT,
 				IsSynced INTEGER
 			);
+
+			CREATE INDEX IF NOT EXISTS idx_TakenAt ON Photos(TakenAtTicks DESC);
+			CREATE INDEX IF NOT EXISTS idx_Hash ON Photos(Hash) WHERE Hash IS NOT NULL;
 			""";
 		await command.ExecuteNonQueryAsync(ct);
 	}

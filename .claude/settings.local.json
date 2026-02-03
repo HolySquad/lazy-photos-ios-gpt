@@ -3,7 +3,14 @@
     "allow": [
       "Bash(dotnet build:*)",
       "Bash(dotnet restore:*)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(dotnet add reference:*)",
+      "Bash(dotnet add:*)",
+      "Bash(dotnet remove:*)",
+      "Bash(timeout 5 dotnet run:*)",
+      "Bash(ls:*)"
     ]
   }
 }

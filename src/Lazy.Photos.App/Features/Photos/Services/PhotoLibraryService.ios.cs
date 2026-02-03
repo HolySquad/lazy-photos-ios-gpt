@@ -90,14 +90,13 @@ public partial class PhotoLibraryService
 		if (thumbnail == null)
 			return null;
 
-		var hash = await ComputeHashAsync(asset, ct);
 		var ratio = imageSizeCache.TryGetValue(asset.LocalIdentifier, out var cachedRatio) ? cachedRatio : 1.0;
 
 		return new PhotoItem
 		{
 			Id = asset.LocalIdentifier,
 			TakenAt = asset.CreationDate?.ToDateTimeOffset(),
-			Hash = hash,
+			Hash = null,  // Deferred until sync is implemented
 			FolderName = "Camera Roll",
 			Thumbnail = thumbnail,
 			FullImage = null,
@@ -173,40 +172,7 @@ public partial class PhotoLibraryService
 		return tcs.Task;
 	}
 
-private static Task<string?> ComputeHashAsync(PHAsset asset, CancellationToken ct)
-{
-	var tcs = new TaskCompletionSource<string?>();
-	var requestOptions = new PHImageRequestOptions
-	{
-			DeliveryMode = PHImageRequestOptionsDeliveryMode.HighQualityFormat,
-			NetworkAccessAllowed = true
-		};
-
-		PHImageManager.DefaultManager.RequestImageDataAndOrientation(
-			asset,
-			requestOptions,
-			(data, _, _, _) =>
-			{
-				if (data == null)
-				{
-					tcs.TrySetResult(null);
-					return;
-				}
-
-				using var sha = SHA256.Create();
-				var bytes = data.ToArray();
-				var hashBytes = sha.ComputeHash(bytes);
-				var sb = new StringBuilder(hashBytes.Length * 2);
-				foreach (var b in hashBytes)
-					sb.Append(b.ToString("x2"));
-				tcs.TrySetResult(sb.ToString());
-			});
-
-	ct.Register(() => tcs.TrySetCanceled(ct));
-	return tcs.Task;
-}
-
-private partial Task<ImageSource?> BuildThumbnailAsyncCore(PhotoItem photo, bool lowQuality, CancellationToken ct)
+	private partial Task<ImageSource?> BuildThumbnailAsyncCore(PhotoItem photo, bool lowQuality, CancellationToken ct)
 {
 	if (photo?.Thumbnail != null)
 		return Task.FromResult(photo.Thumbnail);

@@ -253,9 +253,9 @@ public partial class MainPageViewModel : ObservableObject
 			await Task.Delay(250, ct).ConfigureAwait(false);
 			_isScrolling = false;
 
-			var visiblePhotos = await MainThread.InvokeOnMainThreadAsync(() => Photos.ToList());
+			// Pass collection directly without copying - ObservableCollection implements IReadOnlyList
 			await _thumbnailService.UpgradeVisibleThumbnailsAsync(
-				visiblePhotos,
+				Photos,
 				_visibleStartIndex,
 				_visibleEndIndex,
 				ct);

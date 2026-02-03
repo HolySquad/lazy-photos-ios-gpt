@@ -147,20 +147,18 @@ public sealed class ThumbnailService : IThumbnailService
 		var end = Math.Min(all.Count, start + PriorityWindow);
 
 		var prioritized = new List<PhotoItem>(all.Count);
-		var seen = new HashSet<PhotoItem>();
 
+		// Add visible window items first (highest priority)
 		for (var i = start; i < end; i++)
-		{
-			var item = all[i];
-			prioritized.Add(item);
-			seen.Add(item);
-		}
+			prioritized.Add(all[i]);
 
-		foreach (var item in all)
-		{
-			if (!seen.Contains(item))
-				prioritized.Add(item);
-		}
+		// Add items before visible window (closer items first)
+		for (var i = start - 1; i >= 0; i--)
+			prioritized.Add(all[i]);
+
+		// Add items after visible window
+		for (var i = end; i < all.Count; i++)
+			prioritized.Add(all[i]);
 
 		return prioritized;
 	}

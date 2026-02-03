@@ -52,8 +52,8 @@ public sealed class PhotoStateRepository : IPhotoStateRepository
 
 	public IReadOnlyList<PhotoItem> MergeAndSort(params IEnumerable<PhotoItem>[] newItemSets)
 	{
+		List<PhotoItem> mergedSnapshot;
 		var added = false;
-		List<PhotoItem>? mergedSnapshot;
 
 		lock (_indexLock)
 		{
@@ -73,18 +73,22 @@ public sealed class PhotoStateRepository : IPhotoStateRepository
 			if (!added && _orderedPhotos.Count > 0)
 				return _orderedPhotos;
 
-			mergedSnapshot = _photoIndex.Values.ToList();
-		}
-
-		mergedSnapshot = mergedSnapshot
-			.OrderByDescending(p => p.TakenAt ?? DateTimeOffset.MinValue)
-			.ThenByDescending(p => p.DisplayName)
-			.ToList();
-
-		lock (_indexLock)
-		{
+			// Reuse _orderedPhotos instead of creating new list
 			_orderedPhotos.Clear();
-			_orderedPhotos.AddRange(mergedSnapshot);
+			_orderedPhotos.AddRange(_photoIndex.Values);
+
+			// Sort in-place using List.Sort with comparison delegate
+			_orderedPhotos.Sort((a, b) =>
+			{
+				var dateCompare = (b.TakenAt ?? DateTimeOffset.MinValue)
+					.CompareTo(a.TakenAt ?? DateTimeOffset.MinValue);
+				if (dateCompare != 0)
+					return dateCompare;
+				return string.Compare(b.DisplayName ?? "", a.DisplayName ?? "", StringComparison.Ordinal);
+			});
+
+			// Single copy for return value
+			mergedSnapshot = new List<PhotoItem>(_orderedPhotos);
 		}
 
 		return mergedSnapshot;

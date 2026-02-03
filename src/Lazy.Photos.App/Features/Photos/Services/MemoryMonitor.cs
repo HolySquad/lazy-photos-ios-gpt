@@ -18,7 +18,18 @@ public sealed class MemoryMonitor : IMemoryMonitor
 
 	public bool ShouldThrottle()
 	{
-#if ANDROID
+#if IOS
+		try
+		{
+			// Check managed memory usage on iOS
+			var memoryInfo = GC.GetTotalMemory(false);
+			return memoryInfo > ThrottleThresholdBytes;
+		}
+		catch
+		{
+			return false;
+		}
+#elif ANDROID
 		try
 		{
 			var runtime = Java.Lang.Runtime.GetRuntime();

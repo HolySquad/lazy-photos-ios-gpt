@@ -11,9 +11,10 @@
 
     <Shell.TitleView>
         <Grid Padding="8,0"
+              HeightRequest="44"
               ColumnDefinitions="44,*,44"
               BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}"
-              VerticalOptions="Fill"
+              VerticalOptions="Center"
               HorizontalOptions="Fill">
             <Button FontSize="24"
                     TextColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray100}}"

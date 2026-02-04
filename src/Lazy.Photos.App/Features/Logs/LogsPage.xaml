@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:Lazy.Photos.App.Features.Logs"
+             xmlns:models="clr-namespace:Lazy.Photos.App.Features.Logs.Models"
+             x:Class="Lazy.Photos.App.Features.Logs.LogsPage"
+             x:DataType="local:LogsViewModel"
+             Title="Logs">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- Filter Controls -->
+        <Frame Grid.Row="0"
+               Padding="12"
+               Margin="8"
+               BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+               CornerRadius="8"
+               BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Picker Grid.Column="0"
+                        Title="Filter Level"
+                        SelectedItem="{Binding FilterLevel}">
+                    <Picker.ItemsSource>
+                        <x:Array Type="{x:Type models:LogLevel}">
+                            <models:LogLevel>Debug</models:LogLevel>
+                            <models:LogLevel>Info</models:LogLevel>
+                            <models:LogLevel>Warning</models:LogLevel>
+                            <models:LogLevel>Error</models:LogLevel>
+                        </x:Array>
+                    </Picker.ItemsSource>
+                </Picker>
+                <Button Grid.Column="1"
+                        Text="Refresh"
+                        Command="{Binding RefreshCommand}" />
+            </Grid>
+        </Frame>
+
+        <!-- Log List -->
+        <CollectionView Grid.Row="1"
+                        ItemsSource="{Binding Logs}"
+                        RemainingItemsThreshold="10"
+                        RemainingItemsThresholdReachedCommand="{Binding LoadMoreLogsCommand}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:LogEntry">
+                    <Frame Padding="12"
+                           Margin="8,4"
+                           BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                           CornerRadius="4"
+                           BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}">
+                        <VerticalStackLayout Spacing="4">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                <Label Grid.Column="0"
+                                       Text="{Binding Level}"
+                                       FontSize="12"
+                                       FontAttributes="Bold"
+                                       TextColor="{Binding Level, Converter={StaticResource SyncStatusColorConverter}}" />
+                                <Label Grid.Column="1"
+                                       Text="{Binding Category}"
+                                       FontSize="12"
+                                       TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+                                <Label Grid.Column="2"
+                                       Text="{Binding Timestamp, StringFormat='{0:HH:mm:ss}'}"
+                                       FontSize="12"
+                                       TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+                            </Grid>
+                            <Label Text="{Binding Message}"
+                                   FontSize="14"
+                                   LineBreakMode="WordWrap" />
+                            <Label Text="{Binding Exception}"
+                                   FontSize="12"
+                                   TextColor="{StaticResource Danger}"
+                                   LineBreakMode="WordWrap"
+                                   IsVisible="{Binding Exception, Converter={StaticResource IsNotNullOrEmptyConverter}}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+            <CollectionView.EmptyView>
+                <Label Text="No logs available"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center"
+                       FontSize="16"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+            </CollectionView.EmptyView>
+        </CollectionView>
+
+        <!-- Bottom Actions -->
+        <Frame Grid.Row="2"
+               Padding="12"
+               Margin="8"
+               BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+               CornerRadius="8"
+               BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Label Grid.Column="0"
+                       Text="{Binding DatabaseSize, StringFormat='Database: {0:N0} bytes'}"
+                       VerticalOptions="Center"
+                       FontSize="12"
+                       TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}" />
+                <Button Grid.Column="1"
+                        Text="Clear All"
+                        Command="{Binding ClearLogsCommand}"
+                        BackgroundColor="{StaticResource Danger}" />
+            </Grid>
+        </Frame>
+
+    </Grid>
+</ContentPage>

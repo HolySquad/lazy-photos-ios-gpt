@@ -4,12 +4,13 @@ using Lazy.Photos.App.Features.Logs.Services;
 using Lazy.Photos.App.Features.Sync.Models;
 using Lazy.Photos.App.Features.Sync.Services;
 using Lazy.Photos.App.Features.Sync.UseCases;
+using Lazy.Photos.App.Services;
 
 namespace Lazy.Photos.App.Features.Sync;
 
 /// <summary>
 /// ViewModel for the sync page.
-/// Provides sync controls and status display.
+/// Provides sync controls, status display, and parallel upload configuration.
 /// </summary>
 public partial class SyncViewModel : ObservableObject
 {
@@ -20,6 +21,7 @@ public partial class SyncViewModel : ObservableObject
 	private readonly ISyncOrchestrationService _orchestrationService;
 	private readonly IUploadQueueService _queueService;
 	private readonly ILogService _logService;
+	private readonly IAppSettingsService _settingsService;
 
 	private CancellationTokenSource? _cts;
 
@@ -30,7 +32,8 @@ public partial class SyncViewModel : ObservableObject
 		ICancelSyncUseCase cancelSyncUseCase,
 		ISyncOrchestrationService orchestrationService,
 		IUploadQueueService queueService,
-		ILogService logService)
+		ILogService logService,
+		IAppSettingsService settingsService)
 	{
 		_executeSyncUseCase = executeSyncUseCase;
 		_pauseSyncUseCase = pauseSyncUseCase;
@@ -39,6 +42,7 @@ public partial class SyncViewModel : ObservableObject
 		_orchestrationService = orchestrationService;
 		_queueService = queueService;
 		_logService = logService;
+		_settingsService = settingsService;
 
 		// Bind to orchestration service's state
 		CurrentState = _orchestrationService.CurrentState;
@@ -58,6 +62,16 @@ public partial class SyncViewModel : ObservableObject
 
 	[ObservableProperty]
 	private QueueStatistics? _queueStats;
+
+	[ObservableProperty]
+	private double _parallelUploadCount = 2;
+
+	partial void OnParallelUploadCountChanged(double value)
+	{
+		var clamped = Math.Clamp((int)value, 1, 128);
+		_ = _settingsService.SetParallelUploadCountAsync(clamped);
+		CurrentState.ParallelUploadCount = clamped;
+	}
 
 	[RelayCommand(CanExecute = nameof(CanStartSync))]
 	private async Task StartSyncAsync()
@@ -181,5 +195,9 @@ public partial class SyncViewModel : ObservableObject
 	public async Task OnAppearingAsync()
 	{
 		await RefreshQueueStatsAsync();
+
+		// Load saved parallel upload count
+		var count = await _settingsService.GetParallelUploadCountAsync();
+		ParallelUploadCount = count;
 	}
 }

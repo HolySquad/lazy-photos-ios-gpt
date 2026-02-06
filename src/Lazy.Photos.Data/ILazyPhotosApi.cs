@@ -70,8 +70,8 @@ public interface ILazyPhotosApi
 	Task<BackendUploadSessionResponse> CreateUploadSessionAsync([Body] BackendUploadSessionRequest request);
 
 	[Put("/api/upload-sessions/{id}/chunks")]
-	[Headers("Authorization: Bearer")]
-	Task UploadChunkAsync(Guid id, [Query] long offset, [Body] StreamPart content);
+	[Headers("Authorization: Bearer", "Content-Type: application/octet-stream")]
+	Task UploadChunkAsync(Guid id, [Query] long offset, [Body] Stream content);
 
 	[Post("/api/upload-sessions/{id}/complete")]
 	[Headers("Authorization: Bearer")]
@@ -111,7 +111,9 @@ public record BackendPhotoDto(
 	DateTime UploadedAt,
 	string? CameraModel,
 	double? Latitude,
-	double? Longitude);
+	double? Longitude,
+	string? DownloadUrl,
+	string? ThumbnailUrl);
 
 public record BackendAlbumListResponse(
 	List<BackendAlbumDto> Albums);

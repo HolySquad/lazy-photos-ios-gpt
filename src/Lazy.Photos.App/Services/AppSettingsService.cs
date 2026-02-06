@@ -14,12 +14,14 @@ public sealed class AppSettingsService : IAppSettingsService
 	private const string AutoSyncEnabledKey = "auto_sync_enabled";
 	private const string WifiOnlySyncKey = "wifi_only_sync";
 	private const string UploadQualityIndexKey = "upload_quality_index";
+	private const string ParallelUploadCountKey = "parallel_upload_count";
 
 	// Default API URL for development
 	private const string DefaultApiUrl = "http://localhost:5000";
 	private const bool DefaultAutoSyncEnabled = true;
 	private const bool DefaultWifiOnlySync = true;
 	private const int DefaultUploadQualityIndex = 0;
+	private const int DefaultParallelUploadCount = 2;
 
 	// API Configuration
 	public Task<string?> GetApiUrlAsync()
@@ -163,6 +165,18 @@ public sealed class AppSettingsService : IAppSettingsService
 	public Task SetUploadQualityIndexAsync(int index)
 	{
 		Preferences.Default.Set(UploadQualityIndexKey, index);
+		return Task.CompletedTask;
+	}
+
+	public Task<int> GetParallelUploadCountAsync()
+	{
+		var count = Preferences.Default.Get(ParallelUploadCountKey, DefaultParallelUploadCount);
+		return Task.FromResult(Math.Clamp(count, 1, 128));
+	}
+
+	public Task SetParallelUploadCountAsync(int count)
+	{
+		Preferences.Default.Set(ParallelUploadCountKey, Math.Clamp(count, 1, 128));
 		return Task.CompletedTask;
 	}
 }

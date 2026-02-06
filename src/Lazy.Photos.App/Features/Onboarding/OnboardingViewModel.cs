@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Lazy.Photos.App.Services;
 
@@ -22,7 +22,7 @@ public partial class OnboardingViewModel : ObservableObject
 
 	// Server configuration
 	[ObservableProperty]
-	private string apiUrl = "http://172.26.0.62:5175";
+	private string apiUrl = "http://192.168.0.161:5175";
 
 	[ObservableProperty]
 	private bool isTestingConnection;
@@ -258,7 +258,7 @@ public partial class OnboardingViewModel : ObservableObject
 	{
 		ApiUrl = preset switch
 		{
-			"local" => "http://localhost:5000",
+			"local" => "http://192.168.0.161:5175",
 			"pi" => "http://raspberrypi.local",
 			_ => ApiUrl
 		};

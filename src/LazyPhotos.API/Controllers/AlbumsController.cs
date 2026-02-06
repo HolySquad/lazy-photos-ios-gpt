@@ -128,8 +128,9 @@ public class AlbumsController : ControllerBase
         try
         {
             var userId = GetUserId();
+            var baseUrl = GetBaseUrl();
             var photos = await _albumRepository.GetAlbumPhotosAsync(id, userId);
-            var items = photos.Select(PhotoDto.FromEntity).ToList();
+            var items = photos.Select(p => PhotoDto.FromEntity(p, baseUrl)).ToList();
             return Ok(items);
         }
         catch (UnauthorizedAccessException)
@@ -197,6 +198,12 @@ public class AlbumsController : ControllerBase
             throw new UnauthorizedAccessException("Invalid user token");
         }
         return userId;
+    }
+
+    private string GetBaseUrl()
+    {
+        var request = HttpContext.Request;
+        return $"{request.Scheme}://{request.Host}";
     }
 }
 

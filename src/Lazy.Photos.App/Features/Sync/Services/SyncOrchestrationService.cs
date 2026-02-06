@@ -1,6 +1,7 @@
 using Lazy.Photos.App.Features.Logs.Services;
 using Lazy.Photos.App.Features.Photos.Services;
 using Lazy.Photos.App.Features.Sync.Models;
+using Lazy.Photos.App.Services;
 using Lazy.Photos.Data;
 using Lazy.Photos.Data.Contracts;
 
@@ -8,13 +9,13 @@ namespace Lazy.Photos.App.Features.Sync.Services;
 
 /// <summary>
 /// Orchestrates the photo sync process with pause/resume capability.
-/// Processes uploads in chunks of 6 items for memory efficiency.
+/// Supports configurable parallel uploads (1-128) with SemaphoreSlim throttling.
 /// </summary>
 public sealed class SyncOrchestrationService : ISyncOrchestrationService
 {
-	private const int ChunkSize = 6;
 	private const int MaxRetries = 3;
 	private const long UploadChunkSizeBytes = 1024 * 1024; // 1MB chunks
+	private const int StateSaveBatchSize = 5; // Save state every N completed items in parallel mode
 
 	private readonly IUploadQueueService _queueService;
 	private readonly ISyncStateRepository _stateRepository;
@@ -22,9 +23,18 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 	private readonly IPhotoLibraryService _libraryService;
 	private readonly IPhotoCacheService _cacheService;
 	private readonly ILogService _logService;
+	private readonly IAppSettingsService _settingsService;
 
 	private CancellationTokenSource? _cts;
 	private Task? _syncTask;
+
+	// Thread-safe counters for parallel uploads
+	private int _completedCount;
+	private int _failedCount;
+	private int _activeCount;
+	private long _totalBytesUploaded;
+	private long _totalBytesToUpload;
+	private int _stateSaveCounter;
 
 	public SyncOrchestrationService(
 		IUploadQueueService queueService,
@@ -32,7 +42,8 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 		IPhotosApiClient apiClient,
 		IPhotoLibraryService libraryService,
 		IPhotoCacheService cacheService,
-		ILogService logService)
+		ILogService logService,
+		IAppSettingsService settingsService)
 	{
 		_queueService = queueService;
 		_stateRepository = stateRepository;
@@ -40,8 +51,46 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 		_libraryService = libraryService;
 		_cacheService = cacheService;
 		_logService = logService;
+		_settingsService = settingsService;
 
 		CurrentState = new SyncState();
+
+		// Load previous state and settings asynchronously
+		_ = Task.Run(async () =>
+		{
+			try
+			{
+				var parallelCount = await _settingsService.GetParallelUploadCountAsync();
+				CurrentState.ParallelUploadCount = parallelCount;
+
+				var savedState = await _stateRepository.LoadStateAsync(CancellationToken.None);
+				if (savedState != null && savedState.Status == SyncStatus.Running)
+				{
+					savedState.Status = SyncStatus.Paused;
+					await _logService.LogInfoAsync("Sync", "Detected incomplete sync from previous session");
+				}
+
+				if (savedState != null)
+				{
+					CurrentState.Status = savedState.Status;
+					CurrentState.TotalItems = savedState.TotalItems;
+					CurrentState.CompletedItems = savedState.CompletedItems;
+					CurrentState.FailedItems = savedState.FailedItems;
+					CurrentState.CurrentItemName = savedState.CurrentItemName;
+					CurrentState.ProgressPercentage = savedState.ProgressPercentage;
+					CurrentState.ErrorMessage = savedState.ErrorMessage;
+					CurrentState.StartedAt = savedState.StartedAt;
+					CurrentState.CompletedAt = savedState.CompletedAt;
+					CurrentState.CurrentFileUploadedBytes = savedState.CurrentFileUploadedBytes;
+					CurrentState.CurrentFileTotalBytes = savedState.CurrentFileTotalBytes;
+					CurrentState.CurrentFileProgressPercentage = savedState.CurrentFileProgressPercentage;
+				}
+			}
+			catch (Exception ex)
+			{
+				await _logService.LogWarningAsync("Sync", "Failed to load previous sync state", ex.Message);
+			}
+		});
 	}
 
 	public SyncState CurrentState { get; }
@@ -53,9 +102,22 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 
 	public async Task StartSyncAsync(CancellationToken ct)
 	{
+		if (CurrentState.Status == SyncStatus.Paused)
+		{
+			await _logService.LogInfoAsync("Sync", "Resuming previous paused sync");
+			await ResumeSyncAsync(ct);
+			return;
+		}
+
+		if (CurrentState.Status == SyncStatus.Running || CurrentState.Status == SyncStatus.Preparing)
+		{
+			await _logService.LogInfoAsync("Sync", "Sync already in progress - continuing");
+			return;
+		}
+
 		if (!CanStart)
 		{
-			await _logService.LogWarningAsync("Sync", "Cannot start sync - already running or invalid state");
+			await _logService.LogWarningAsync("Sync", "Cannot start sync - invalid state");
 			return;
 		}
 
@@ -66,9 +128,13 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 		CurrentState.StartedAt = DateTimeOffset.UtcNow;
 		CurrentState.CompletedAt = null;
 
-		await _logService.LogInfoAsync("Sync", "Sync started");
+		// Load the current parallel upload setting
+		var parallelCount = await _settingsService.GetParallelUploadCountAsync();
+		CurrentState.ParallelUploadCount = parallelCount;
 
-		_syncTask = Task.Run(async () => await ProcessSyncAsync(_cts.Token), _cts.Token);
+		await _logService.LogInfoAsync("Sync", $"Sync started with {parallelCount} parallel uploads");
+
+		_syncTask = Task.Run(async () => await ProcessSyncAsync(parallelCount, _cts.Token), _cts.Token);
 	}
 
 	public async Task PauseSyncAsync()
@@ -95,6 +161,7 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 		}
 
 		CurrentState.Status = SyncStatus.Paused;
+		CurrentState.ActiveUploads = 0;
 		await _stateRepository.SaveStateAsync(CurrentState, CancellationToken.None);
 
 		await _logService.LogInfoAsync("Sync", "Sync paused");
@@ -111,9 +178,12 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 		_cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 		CurrentState.Status = SyncStatus.Running;
 
-		await _logService.LogInfoAsync("Sync", "Resuming sync");
+		var parallelCount = await _settingsService.GetParallelUploadCountAsync();
+		CurrentState.ParallelUploadCount = parallelCount;
 
-		_syncTask = Task.Run(async () => await ProcessSyncAsync(_cts.Token), _cts.Token);
+		await _logService.LogInfoAsync("Sync", $"Resuming sync with {parallelCount} parallel uploads");
+
+		_syncTask = Task.Run(async () => await ProcessSyncAsync(parallelCount, _cts.Token), _cts.Token);
 	}
 
 	public async Task CancelSyncAsync()
@@ -142,13 +212,14 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 		}
 
 		CurrentState.Status = SyncStatus.Cancelled;
+		CurrentState.ActiveUploads = 0;
 		CurrentState.CompletedAt = DateTimeOffset.UtcNow;
 		await _stateRepository.ClearStateAsync(CancellationToken.None);
 
 		await _logService.LogInfoAsync("Sync", "Sync cancelled");
 	}
 
-	private async Task ProcessSyncAsync(CancellationToken ct)
+	private async Task ProcessSyncAsync(int parallelCount, CancellationToken ct)
 	{
 		try
 		{
@@ -156,23 +227,71 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 
 			var pendingItems = await _queueService.GetPendingItemsAsync(ct);
 			CurrentState.TotalItems = pendingItems.Count;
+
+			// Reset counters
+			_completedCount = CurrentState.CompletedItems;
+			_failedCount = CurrentState.FailedItems;
+			_activeCount = 0;
+			_totalBytesUploaded = 0;
+			_totalBytesToUpload = 0;
+			_stateSaveCounter = 0;
 			CurrentState.UpdateProgress();
 
-			await _logService.LogInfoAsync("Sync", $"Processing {pendingItems.Count} items");
+			await _logService.LogInfoAsync("Sync", $"Processing {pendingItems.Count} items with {parallelCount} parallel uploads");
 
-			// Process in chunks of 6
-			for (int i = 0; i < pendingItems.Count; i += ChunkSize)
+			if (parallelCount <= 1)
 			{
-				if (ct.IsCancellationRequested)
-					break;
+				// Sequential mode - original behavior
+				foreach (var item in pendingItems)
+				{
+					if (ct.IsCancellationRequested)
+						break;
 
-				var chunk = pendingItems.Skip(i).Take(ChunkSize).ToList();
-				await ProcessChunkAsync(chunk, ct);
+					await ProcessItemAsync(item, ct);
+					await _stateRepository.SaveStateAsync(CurrentState, CancellationToken.None);
+				}
+			}
+			else
+			{
+				// Parallel mode with SemaphoreSlim throttling
+				using var semaphore = new SemaphoreSlim(parallelCount, parallelCount);
+				var tasks = new List<Task>();
+
+				foreach (var item in pendingItems)
+				{
+					if (ct.IsCancellationRequested)
+						break;
+
+					await semaphore.WaitAsync(ct);
+
+					tasks.Add(Task.Run(async () =>
+					{
+						try
+						{
+							await ProcessItemParallelAsync(item, ct);
+						}
+						finally
+						{
+							semaphore.Release();
+						}
+					}, ct));
+				}
+
+				// Wait for all in-flight uploads to complete
+				try
+				{
+					await Task.WhenAll(tasks);
+				}
+				catch (OperationCanceledException)
+				{
+					// Expected on cancel/pause
+				}
 			}
 
 			if (!ct.IsCancellationRequested)
 			{
 				CurrentState.Status = SyncStatus.Completed;
+				CurrentState.ActiveUploads = 0;
 				CurrentState.CompletedAt = DateTimeOffset.UtcNow;
 				await _logService.LogInfoAsync("Sync", $"Sync completed: {CurrentState.CompletedItems} uploaded, {CurrentState.FailedItems} failed");
 			}
@@ -185,6 +304,7 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 		{
 			CurrentState.Status = SyncStatus.Error;
 			CurrentState.ErrorMessage = ex.Message;
+			CurrentState.ActiveUploads = 0;
 			CurrentState.CompletedAt = DateTimeOffset.UtcNow;
 			await _logService.LogErrorAsync("Sync", "Sync failed", ex);
 		}
@@ -194,27 +314,22 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 		}
 	}
 
-	private async Task ProcessChunkAsync(List<SyncQueueItem> chunk, CancellationToken ct)
-	{
-		foreach (var item in chunk)
-		{
-			if (ct.IsCancellationRequested)
-				break;
-
-			await ProcessItemAsync(item, ct);
-		}
-
-		// Save state after each chunk
-		await _stateRepository.SaveStateAsync(CurrentState, CancellationToken.None);
-	}
-
+	/// <summary>
+	/// Processes a single item in sequential mode (preserves original behavior).
+	/// </summary>
 	private async Task ProcessItemAsync(SyncQueueItem item, CancellationToken ct)
 	{
-		CurrentState.CurrentItemName = item.FileName;
+		await MainThread.InvokeOnMainThreadAsync(() =>
+		{
+			CurrentState.CurrentItemName = item.FileName;
+			CurrentState.CurrentFileUploadedBytes = 0;
+			CurrentState.CurrentFileTotalBytes = item.SizeBytes;
+			CurrentState.CurrentFileProgressPercentage = 0;
+			CurrentState.ActiveUploads = 1;
+		});
 
 		try
 		{
-			// Compute hash if missing
 			if (string.IsNullOrWhiteSpace(item.Hash))
 			{
 				await _queueService.UpdateItemStatusAsync(item.Id, QueueItemStatus.Hashing, null, ct);
@@ -224,20 +339,103 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 				{
 					await _logService.LogWarningAsync("Upload", $"Failed to compute hash for {item.FileName}");
 					await _queueService.UpdateItemStatusAsync(item.Id, QueueItemStatus.Failed, "Hash computation failed", ct);
-					CurrentState.FailedItems++;
-					CurrentState.UpdateProgress();
+
+					await MainThread.InvokeOnMainThreadAsync(() =>
+					{
+						CurrentState.FailedItems++;
+						CurrentState.UpdateProgress();
+					});
 					return;
 				}
 			}
 
 			await UploadItemWithRetryAsync(item, ct);
 		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
 		catch (Exception ex)
 		{
 			await _logService.LogErrorAsync("Upload", $"Failed to upload {item.FileName}", ex);
 			await _queueService.UpdateItemStatusAsync(item.Id, QueueItemStatus.Failed, ex.Message, ct);
-			CurrentState.FailedItems++;
-			CurrentState.UpdateProgress();
+
+			await MainThread.InvokeOnMainThreadAsync(() =>
+			{
+				CurrentState.FailedItems++;
+				CurrentState.UpdateProgress();
+			});
+		}
+	}
+
+	/// <summary>
+	/// Processes a single item in parallel mode with thread-safe counter updates.
+	/// </summary>
+	private async Task ProcessItemParallelAsync(SyncQueueItem item, CancellationToken ct)
+	{
+		var active = Interlocked.Increment(ref _activeCount);
+		Interlocked.Add(ref _totalBytesToUpload, item.SizeBytes);
+
+		await MainThread.InvokeOnMainThreadAsync(() =>
+		{
+			CurrentState.ActiveUploads = active;
+			CurrentState.CurrentItemName = item.FileName;
+			CurrentState.TotalBytesToUpload = Interlocked.Read(ref _totalBytesToUpload);
+		});
+
+		try
+		{
+			if (string.IsNullOrWhiteSpace(item.Hash))
+			{
+				await _queueService.UpdateItemStatusAsync(item.Id, QueueItemStatus.Hashing, null, ct);
+				item.Hash = await ComputeHashForItemAsync(item, ct);
+
+				if (string.IsNullOrWhiteSpace(item.Hash))
+				{
+					await _logService.LogWarningAsync("Upload", $"Failed to compute hash for {item.FileName}");
+					await _queueService.UpdateItemStatusAsync(item.Id, QueueItemStatus.Failed, "Hash computation failed", ct);
+
+					var failed = Interlocked.Increment(ref _failedCount);
+					await MainThread.InvokeOnMainThreadAsync(() =>
+					{
+						CurrentState.FailedItems = failed;
+						CurrentState.UpdateProgress();
+					});
+					return;
+				}
+			}
+
+			await UploadItemWithRetryAsync(item, ct);
+		}
+		catch (OperationCanceledException)
+		{
+			throw;
+		}
+		catch (Exception ex)
+		{
+			await _logService.LogErrorAsync("Upload", $"Failed to upload {item.FileName}", ex);
+			await _queueService.UpdateItemStatusAsync(item.Id, QueueItemStatus.Failed, ex.Message, ct);
+
+			var failed = Interlocked.Increment(ref _failedCount);
+			await MainThread.InvokeOnMainThreadAsync(() =>
+			{
+				CurrentState.FailedItems = failed;
+				CurrentState.UpdateProgress();
+			});
+		}
+		finally
+		{
+			var remaining = Interlocked.Decrement(ref _activeCount);
+			await MainThread.InvokeOnMainThreadAsync(() =>
+			{
+				CurrentState.ActiveUploads = remaining;
+			});
+
+			// Periodically save state (not after every item to reduce I/O)
+			if (Interlocked.Increment(ref _stateSaveCounter) % StateSaveBatchSize == 0)
+			{
+				await _stateRepository.SaveStateAsync(CurrentState, CancellationToken.None);
+			}
 		}
 	}
 
@@ -248,7 +446,7 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 			try
 			{
 				await UploadItemAsync(item, ct);
-				return; // Success
+				return;
 			}
 			catch (OperationCanceledException)
 			{
@@ -260,12 +458,16 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 				{
 					await _logService.LogErrorAsync("Upload", $"Failed to upload {item.FileName} after {MaxRetries} retries", ex);
 					await _queueService.UpdateItemStatusAsync(item.Id, QueueItemStatus.Failed, $"Failed after {MaxRetries} retries: {ex.Message}", ct);
-					CurrentState.FailedItems++;
-					CurrentState.UpdateProgress();
+
+					var failed = Interlocked.Increment(ref _failedCount);
+					await MainThread.InvokeOnMainThreadAsync(() =>
+					{
+						CurrentState.FailedItems = failed;
+						CurrentState.UpdateProgress();
+					});
 					throw;
 				}
 
-				// Exponential backoff: 1s, 2s, 4s
 				var delayMs = (int)Math.Pow(2, attempt) * 1000;
 				await _logService.LogWarningAsync("Upload", $"Upload attempt {attempt + 1} failed for {item.FileName}, retrying in {delayMs}ms");
 				await Task.Delay(delayMs, ct);
@@ -279,7 +481,6 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 
 		var photoItem = new Photos.Models.PhotoItem { Id = item.LocalPhotoId };
 
-		// Collect metadata if not already present
 		if (item.SizeBytes == 0)
 			item.SizeBytes = await _libraryService.GetPhotoSizeAsync(photoItem, ct);
 
@@ -296,7 +497,8 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 			}
 		}
 
-		// Create upload session
+		await _logService.LogInfoAsync("Upload", $"Creating upload session for {item.FileName} (hash: {item.Hash}, size: {item.SizeBytes})");
+
 		var sessionRequest = new UploadSessionRequest(
 			Hash: item.Hash!,
 			SizeBytes: item.SizeBytes,
@@ -309,22 +511,26 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 		);
 
 		var sessionResponse = await _apiClient.CreateUploadSessionAsync(sessionRequest, ct);
+		await _logService.LogInfoAsync("Upload", $"Upload session created: {sessionResponse.UploadSessionId}, AlreadyExists={sessionResponse.AlreadyExists}");
 
-		// If photo already exists on server, skip upload
 		if (sessionResponse.AlreadyExists)
 		{
 			await _logService.LogInfoAsync("Upload", $"Photo {item.FileName} already exists on server (hash: {item.Hash})");
 			await _queueService.UpdateItemStatusAsync(item.Id, QueueItemStatus.Skipped, null, ct);
 			await UpdateCacheAsSyncedAsync(item, ct);
-			CurrentState.CompletedItems++;
-			CurrentState.UpdateProgress();
+
+			var completed = Interlocked.Increment(ref _completedCount);
+			await MainThread.InvokeOnMainThreadAsync(() =>
+			{
+				CurrentState.CompletedItems = completed;
+				CurrentState.UpdateProgress();
+			});
 			return;
 		}
 
-		// Upload file in chunks using platform-specific stream
-		await UploadFileInChunksAsync(photoItem, sessionResponse.UploadSessionId, ct);
+		await UploadFileInChunksAsync(photoItem, sessionResponse.UploadSessionId, item.SizeBytes, ct);
 
-		// Complete upload
+		await _logService.LogInfoAsync("Upload", $"Completing upload session {sessionResponse.UploadSessionId}");
 		var completeRequest = new UploadCompleteRequest(StorageKey: $"uploads/{item.Hash}");
 		await _apiClient.CompleteUploadAsync(sessionResponse.UploadSessionId, completeRequest, ct);
 
@@ -332,29 +538,70 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 		await _queueService.MarkAsUploadedAsync(item.Id, ct);
 		await UpdateCacheAsSyncedAsync(item, ct);
 
-		CurrentState.CompletedItems++;
-		CurrentState.UpdateProgress();
+		var completedAfterUpload = Interlocked.Increment(ref _completedCount);
+		await MainThread.InvokeOnMainThreadAsync(() =>
+		{
+			CurrentState.CompletedItems = completedAfterUpload;
+			CurrentState.UpdateProgress();
+		});
 	}
 
-	private async Task UploadFileInChunksAsync(Photos.Models.PhotoItem photoItem, Guid sessionId, CancellationToken ct)
+	private async Task UploadFileInChunksAsync(Photos.Models.PhotoItem photoItem, Guid sessionId, long totalBytes, CancellationToken ct)
 	{
+		await _logService.LogInfoAsync("Upload", $"Starting chunked upload for photo {photoItem.Id}, session {sessionId}");
+
 		await using var photoStream = await _libraryService.GetPhotoStreamAsync(photoItem, ct);
 		if (photoStream == null)
 			throw new InvalidOperationException($"Failed to get photo stream for {photoItem.Id}");
 
-		long offset = 0;
-		var buffer = new byte[UploadChunkSizeBytes];
-
-		while (true)
+		// Use a pooled buffer to reduce GC pressure across parallel uploads
+		var buffer = System.Buffers.ArrayPool<byte>.Shared.Rent((int)UploadChunkSizeBytes);
+		try
 		{
-			var bytesRead = await photoStream.ReadAsync(buffer, 0, buffer.Length, ct);
-			if (bytesRead == 0)
-				break;
+			// Copy platform stream to MemoryStream to avoid timeout issues with PHAsset/MediaStore
+			// Pre-allocate capacity to avoid resizing for known file sizes
+			var capacity = totalBytes > 0 && totalBytes <= int.MaxValue ? (int)totalBytes : 0;
+			await using var memoryStream = new MemoryStream(capacity);
+			await photoStream.CopyToAsync(memoryStream, 81920, ct);
+			memoryStream.Position = 0;
 
-			await using var chunkStream = new MemoryStream(buffer, 0, bytesRead);
-			await _apiClient.UploadChunkAsync(sessionId, offset, chunkStream, ct);
+			long offset = 0;
+			int chunkNumber = 0;
 
-			offset += bytesRead;
+			while (true)
+			{
+				var bytesRead = await memoryStream.ReadAsync(buffer, 0, (int)UploadChunkSizeBytes, ct);
+				if (bytesRead == 0)
+					break;
+
+				chunkNumber++;
+
+				await using var chunkStream = new MemoryStream(buffer, 0, bytesRead);
+				await _apiClient.UploadChunkAsync(sessionId, offset, chunkStream, ct);
+
+				offset += bytesRead;
+
+				// Update aggregate byte counters for parallel progress
+				var uploaded = Interlocked.Add(ref _totalBytesUploaded, bytesRead);
+				await MainThread.InvokeOnMainThreadAsync(() =>
+				{
+					CurrentState.TotalBytesUploaded = uploaded;
+					CurrentState.TotalBytesToUpload = Interlocked.Read(ref _totalBytesToUpload);
+
+					// For sequential mode, also update per-file progress
+					if (CurrentState.ParallelUploadCount <= 1)
+					{
+						CurrentState.CurrentFileUploadedBytes = offset;
+						CurrentState.CurrentFileProgressPercentage = totalBytes > 0 ? (double)offset / totalBytes : 0;
+					}
+
+					CurrentState.UpdateProgress();
+				});
+			}
+		}
+		finally
+		{
+			System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
 		}
 	}
 
@@ -362,7 +609,6 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 	{
 		try
 		{
-			// Create a temporary PhotoItem for hash computation
 			var photoItem = new Photos.Models.PhotoItem
 			{
 				Id = item.LocalPhotoId
@@ -381,7 +627,6 @@ public sealed class SyncOrchestrationService : ISyncOrchestrationService
 	{
 		try
 		{
-			// Load cached photos and update the IsSynced flag
 			var cachedPhotos = await _cacheService.GetCachedPhotosAsync(ct);
 			var matchingPhoto = cachedPhotos.FirstOrDefault(p => p.Id == item.LocalPhotoId || p.Hash == item.Hash);
 

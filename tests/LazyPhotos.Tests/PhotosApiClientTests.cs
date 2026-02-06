@@ -1,4 +1,4 @@
-using Lazy.Photos.Data;
+﻿using Lazy.Photos.Data;
 using Lazy.Photos.Data.Contracts;
 using Refit;
 
@@ -186,6 +186,15 @@ public sealed class PhotosApiClientTests
 		}
 
 		public Task<HealthResponse> GetHealthAsync() =>
+			throw new NotImplementedException();
+
+		public Task<BackendUploadSessionResponse> CreateUploadSessionAsync(BackendUploadSessionRequest request) =>
+			throw new NotImplementedException();
+
+		public Task UploadChunkAsync(Guid sessionId, long offset, Stream chunk) =>
+			throw new NotImplementedException();
+
+		public Task<BackendUploadCompleteResponse> CompleteUploadAsync(Guid sessionId, BackendUploadCompleteRequest request) =>
 			throw new NotImplementedException();
 
 		private static Guid ToGuid(int value)

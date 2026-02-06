@@ -8,16 +8,18 @@ namespace Lazy.Photos.App.Features.Sync.UseCases;
 /// <summary>
 /// Use case for starting photo sync from device to server.
 /// Identifies new/modified photos and queues them for upload.
+/// Photos are uploaded one at a time for better progress tracking and stability.
 /// </summary>
 public sealed class ExecuteSyncUseCase : IExecuteSyncUseCase
 {
 	private const int MaxPhotosToSync = 1000; // Limit for v1
-	private const int HashComputeChunkSize = 6;
+	private const int HashComputeChunkSize = 6; // Used only for initial hash computation
 
 	private readonly IPhotoLibraryService _libraryService;
 	private readonly IPhotoCacheService _cacheService;
 	private readonly IUploadQueueService _queueService;
 	private readonly ISyncOrchestrationService _orchestrationService;
+	private readonly IPhotoPermissionService _permissionService;
 	private readonly ILogService _logService;
 
 	public ExecuteSyncUseCase(
@@ -25,12 +27,14 @@ public sealed class ExecuteSyncUseCase : IExecuteSyncUseCase
 		IPhotoCacheService cacheService,
 		IUploadQueueService queueService,
 		ISyncOrchestrationService orchestrationService,
+		IPhotoPermissionService permissionService,
 		ILogService logService)
 	{
 		_libraryService = libraryService;
 		_cacheService = cacheService;
 		_queueService = queueService;
 		_orchestrationService = orchestrationService;
+		_permissionService = permissionService;
 		_logService = logService;
 	}
 
@@ -39,6 +43,14 @@ public sealed class ExecuteSyncUseCase : IExecuteSyncUseCase
 		try
 		{
 			await _logService.LogInfoAsync("Sync", "Starting sync preparation");
+
+			// Check photo library permissions
+			var hasPermission = await _permissionService.EnsurePhotosPermissionAsync();
+			if (!hasPermission)
+			{
+				await _logService.LogErrorAsync("Sync", "Photo library permission denied");
+				return new ExecuteSyncResult(false, 0, "Photo library permission is required to sync photos.");
+			}
 
 			// Load device photos
 			var devicePhotos = await _libraryService.GetRecentPhotosAsync(MaxPhotosToSync, ct);

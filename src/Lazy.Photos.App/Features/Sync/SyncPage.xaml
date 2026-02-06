@@ -10,15 +10,65 @@
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="16">
 
+            <!-- Parallel Upload Settings -->
+            <Frame BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
+                   CornerRadius="8"
+                   Padding="16"
+                   BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Upload Settings"
+                           FontSize="18"
+                           FontAttributes="Bold" />
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <Label Grid.Column="0"
+                               Text="Parallel Uploads"
+                               FontSize="14"
+                               VerticalOptions="Center" />
+                        <Label Grid.Column="1"
+                               Text="{Binding ParallelUploadCount, StringFormat='{0:F0}'}"
+                               FontSize="14"
+                               FontAttributes="Bold"
+                               VerticalOptions="Center" />
+                    </Grid>
+
+                    <Slider Minimum="1"
+                            Maximum="128"
+                            Value="{Binding ParallelUploadCount}"
+                            MinimumTrackColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                            MaximumTrackColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}" />
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Label Grid.Column="0"
+                               Text="1"
+                               FontSize="10"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
+                        <Label Grid.Column="1"
+                               Text="128"
+                               FontSize="10"
+                               HorizontalOptions="End"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
             <!-- Sync Status Card -->
             <Frame BorderColor="{AppThemeBinding Light={StaticResource Gray300}, Dark={StaticResource Gray600}}"
                    CornerRadius="8"
                    Padding="16"
                    BackgroundColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}">
                 <VerticalStackLayout Spacing="12">
-                    <Label Text="Sync Status"
-                           FontSize="18"
-                           FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Grid.Column="0"
+                               Text="Sync Status"
+                               FontSize="18"
+                               FontAttributes="Bold" />
+                        <Label Grid.Column="1"
+                               Text="{Binding CurrentState.ActiveUploads, StringFormat='Active: {0}'}"
+                               FontSize="14"
+                               TextColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}"
+                               VerticalOptions="Center" />
+                    </Grid>
 
                     <Label Text="{Binding CurrentState.Status}"
                            FontSize="16"
@@ -43,10 +93,42 @@
                         </VerticalStackLayout>
                     </Grid>
 
-                    <Label Text="{Binding CurrentState.CurrentItemName}"
-                           FontSize="12"
-                           TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}"
-                           IsVisible="{Binding CurrentState.CurrentItemName, Converter={StaticResource IsNotNullOrEmptyConverter}}" />
+                    <!-- Current file being uploaded -->
+                    <VerticalStackLayout Spacing="4"
+                                        IsVisible="{Binding CurrentState.CurrentItemName, Converter={StaticResource IsNotNullOrEmptyConverter}}">
+                        <Label Text="{Binding CurrentState.CurrentItemName}"
+                               FontSize="12"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray600}, Dark={StaticResource Gray400}}"
+                               LineBreakMode="TailTruncation" />
+
+                        <!-- File upload progress bar (shown in sequential mode) -->
+                        <ProgressBar Progress="{Binding CurrentState.CurrentFileProgressPercentage}"
+                                     ProgressColor="{AppThemeBinding Light={StaticResource Success}, Dark={StaticResource Success}}"
+                                     HeightRequest="4" />
+
+                        <!-- File upload bytes -->
+                        <Label FontSize="10"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}">
+                            <Label.Text>
+                                <MultiBinding StringFormat="{}{0} / {1} ({2:P0})">
+                                    <Binding Path="CurrentState.CurrentFileUploadedBytes" Converter="{StaticResource ByteSizeConverter}" />
+                                    <Binding Path="CurrentState.CurrentFileTotalBytes" Converter="{StaticResource ByteSizeConverter}" />
+                                    <Binding Path="CurrentState.CurrentFileProgressPercentage" />
+                                </MultiBinding>
+                            </Label.Text>
+                        </Label>
+
+                        <!-- Aggregate throughput (shown in parallel mode) -->
+                        <Label FontSize="10"
+                               TextColor="{AppThemeBinding Light={StaticResource Gray500}, Dark={StaticResource Gray400}}">
+                            <Label.Text>
+                                <MultiBinding StringFormat="Total uploaded: {0} / {1}">
+                                    <Binding Path="CurrentState.TotalBytesUploaded" Converter="{StaticResource ByteSizeConverter}" />
+                                    <Binding Path="CurrentState.TotalBytesToUpload" Converter="{StaticResource ByteSizeConverter}" />
+                                </MultiBinding>
+                            </Label.Text>
+                        </Label>
+                    </VerticalStackLayout>
 
                     <Label Text="{Binding CurrentState.ErrorMessage}"
                            FontSize="12"

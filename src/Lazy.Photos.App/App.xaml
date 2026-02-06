@@ -18,6 +18,7 @@
             <converters:IsNotNullConverter x:Key="IsNotNullConverter" />
             <converters:IsNotNullOrEmptyConverter x:Key="IsNotNullOrEmptyConverter" />
             <converters:SyncStatusColorConverter x:Key="SyncStatusColorConverter" />
+            <converters:ByteSizeConverter x:Key="ByteSizeConverter" />
 
             <!-- Onboarding Converters -->
             <converters:StringNotEmptyConverter x:Key="StringNotEmptyConverter" />

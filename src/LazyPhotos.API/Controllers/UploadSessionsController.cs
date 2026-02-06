@@ -3,6 +3,9 @@ using LazyPhotos.Core.Entities;
 using LazyPhotos.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Jpeg;
 
 namespace LazyPhotos.API.Controllers;
 
@@ -15,18 +18,22 @@ public class UploadSessionsController : ControllerBase
 	private readonly IPhotoRepository _photoRepository;
 	private readonly IStorageService _storageService;
 	private readonly ILogger<UploadSessionsController> _logger;
+	private readonly string _uploadPath;
 	private const int DefaultChunkSize = 1024 * 1024; // 1MB
+	private const int DefaultThumbnailSize = 300;
 
 	public UploadSessionsController(
 		IUploadSessionRepository sessionRepository,
 		IPhotoRepository photoRepository,
 		IStorageService storageService,
-		ILogger<UploadSessionsController> logger)
+		ILogger<UploadSessionsController> logger,
+		IConfiguration configuration)
 	{
 		_sessionRepository = sessionRepository;
 		_photoRepository = photoRepository;
 		_storageService = storageService;
 		_logger = logger;
+		_uploadPath = configuration["Storage:UploadPath"] ?? "uploads";
 	}
 
 	[HttpPost]
@@ -166,6 +173,20 @@ public class UploadSessionsController : ControllerBase
 
 			await _photoRepository.AddAsync(photo);
 
+			// Generate thumbnail in background (don't block the response)
+			_ = Task.Run(async () =>
+			{
+				try
+				{
+					await GenerateThumbnailAsync(finalPath, session.Hash, DefaultThumbnailSize);
+					_logger.LogInformation("Generated thumbnail for photo {PhotoId}", photo.Id);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Failed to generate thumbnail for photo {PhotoId}", photo.Id);
+				}
+			});
+
 			// Mark session as completed
 			session.IsCompleted = true;
 			session.CompletedAt = DateTime.UtcNow;
@@ -207,6 +228,45 @@ public class UploadSessionsController : ControllerBase
 			"image/webp" => ".webp",
 			_ => ".jpg"
 		};
+	}
+
+	private async Task GenerateThumbnailAsync(string sourcePath, string hash, int size)
+	{
+		try
+		{
+			var thumbnailDir = Path.Combine(_uploadPath, "thumbnails");
+			Directory.CreateDirectory(thumbnailDir);
+			var thumbnailPath = Path.Combine(thumbnailDir, $"{hash}_{size}.jpg");
+
+			// Make paths absolute if relative
+			if (!Path.IsPathRooted(sourcePath))
+				sourcePath = Path.GetFullPath(sourcePath);
+			if (!Path.IsPathRooted(thumbnailPath))
+				thumbnailPath = Path.GetFullPath(thumbnailPath);
+
+			// Skip if thumbnail already exists
+			if (System.IO.File.Exists(thumbnailPath))
+			{
+				_logger.LogDebug("Thumbnail already exists: {ThumbnailPath}", thumbnailPath);
+				return;
+			}
+
+			using var image = await Image.LoadAsync(sourcePath);
+
+			// Calculate aspect-preserving dimensions
+			var ratio = Math.Min((double)size / image.Width, (double)size / image.Height);
+			var targetWidth = (int)(image.Width * ratio);
+			var targetHeight = (int)(image.Height * ratio);
+
+			image.Mutate(x => x.Resize(targetWidth, targetHeight));
+
+			await image.SaveAsJpegAsync(thumbnailPath, new JpegEncoder { Quality = 85 });
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Error generating thumbnail for hash {Hash}", hash);
+			throw;
+		}
 	}
 }
 

@@ -136,6 +136,23 @@ public sealed class PhotosApiClient : IPhotosApiClient
 	// DTO Mapping Methods
 	private static PhotoDto MapToPhotoDto(BackendPhotoDto backend)
 	{
+		Uri? downloadUrl = null;
+		if (!string.IsNullOrEmpty(backend.DownloadUrl))
+		{
+			Uri.TryCreate(backend.DownloadUrl, UriKind.Absolute, out downloadUrl);
+		}
+
+		// Use thumbnail URL for thumbnails dictionary
+		Dictionary<string, string>? thumbnails = null;
+		if (!string.IsNullOrEmpty(backend.ThumbnailUrl))
+		{
+			thumbnails = new Dictionary<string, string>
+			{
+				{ "thumb", backend.ThumbnailUrl },
+				{ "medium", backend.ThumbnailUrl }
+			};
+		}
+
 		return new PhotoDto(
 			Id: ConvertIntToGuid(backend.Id),
 			UserId: Guid.Empty, // Not returned by backend
@@ -154,8 +171,8 @@ public sealed class PhotosApiClient : IPhotosApiClient
 			CameraModel: backend.CameraModel,
 			IsDeleted: false,
 			UpdatedAt: backend.UploadedAt,
-			Thumbnails: null,
-			DownloadUrl: null);
+			Thumbnails: thumbnails,
+			DownloadUrl: downloadUrl);
 	}
 
 	private static AlbumDto MapToAlbumDto(BackendAlbumDto backend)
@@ -231,8 +248,19 @@ public sealed class PhotosApiClient : IPhotosApiClient
 
 	public async Task UploadChunkAsync(Guid uploadSessionId, long offset, Stream content, CancellationToken ct)
 	{
-		var streamPart = new StreamPart(content, "chunk", "application/octet-stream");
-		await _api.UploadChunkAsync(uploadSessionId, offset, streamPart);
+		System.Diagnostics.Debug.WriteLine($"[PhotosApiClient] UploadChunkAsync called: sessionId={uploadSessionId}, offset={offset}, contentLength={content.Length}");
+
+		try
+		{
+			// Send raw stream directly (backend expects raw binary in request body, not multipart)
+			await _api.UploadChunkAsync(uploadSessionId, offset, content);
+			System.Diagnostics.Debug.WriteLine($"[PhotosApiClient] UploadChunkAsync completed successfully");
+		}
+		catch (Exception ex)
+		{
+			System.Diagnostics.Debug.WriteLine($"[PhotosApiClient] UploadChunkAsync failed: {ex.Message}");
+			throw;
+		}
 	}
 
 	public async Task<UploadCompleteResponse> CompleteUploadAsync(Guid uploadSessionId, UploadCompleteRequest request, CancellationToken ct)

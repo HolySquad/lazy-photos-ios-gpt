@@ -30,4 +30,8 @@ public interface IAppSettingsService
 	Task SetWifiOnlySyncAsync(bool enabled);
 	Task<int> GetUploadQualityIndexAsync();
 	Task SetUploadQualityIndexAsync(int index);
+
+	// Parallel Upload
+	Task<int> GetParallelUploadCountAsync();
+	Task SetParallelUploadCountAsync(int count);
 }

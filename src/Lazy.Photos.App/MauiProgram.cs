@@ -55,9 +55,10 @@ public static class MauiProgram
 			.ConfigureHttpClient((sp, client) =>
 			{
 				// Get API URL from Preferences (synchronous operation)
-				var apiUrl = Preferences.Default.Get("api_url", "http://localhost:5000");
-				client.BaseAddress = new Uri(apiUrl ?? "http://localhost:5000");
-				client.Timeout = TimeSpan.FromSeconds(30);
+				var apiUrl = Preferences.Default.Get("api_url", "http://192.168.0.161:5175");
+				client.BaseAddress = new Uri(apiUrl);
+				// Increased timeout for photo uploads (large files on slow connections)
+				client.Timeout = TimeSpan.FromMinutes(5);
 			})
 			.AddHttpMessageHandler<AuthorizationHandler>()
 			.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler

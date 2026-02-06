@@ -28,11 +28,13 @@ public sealed class SyncStateRepository : ISyncStateRepository
 				INSERT OR REPLACE INTO SyncState (
 					Id, Status, TotalItems, CompletedItems, FailedItems,
 					CurrentItemName, ProgressPercentage, ErrorMessage,
-					StartedAtTicks, CompletedAtTicks
+					StartedAtTicks, CompletedAtTicks,
+					CurrentFileUploadedBytes, CurrentFileTotalBytes, CurrentFileProgressPercentage
 				) VALUES (
 					1, $status, $total, $completed, $failed,
 					$current, $progress, $error,
-					$started, $completedAt
+					$started, $completedAt,
+					$fileUploaded, $fileTotal, $fileProgress
 				)
 				""";
 
@@ -45,6 +47,9 @@ public sealed class SyncStateRepository : ISyncStateRepository
 			command.Parameters.AddWithValue("$error", state.ErrorMessage ?? (object)DBNull.Value);
 			command.Parameters.AddWithValue("$started", state.StartedAt?.UtcTicks ?? (object)DBNull.Value);
 			command.Parameters.AddWithValue("$completedAt", state.CompletedAt?.UtcTicks ?? (object)DBNull.Value);
+			command.Parameters.AddWithValue("$fileUploaded", state.CurrentFileUploadedBytes);
+			command.Parameters.AddWithValue("$fileTotal", state.CurrentFileTotalBytes);
+			command.Parameters.AddWithValue("$fileProgress", state.CurrentFileProgressPercentage);
 
 			await command.ExecuteNonQueryAsync(ct);
 		}
@@ -65,7 +70,8 @@ public sealed class SyncStateRepository : ISyncStateRepository
 		command.CommandText = """
 			SELECT Status, TotalItems, CompletedItems, FailedItems,
 				   CurrentItemName, ProgressPercentage, ErrorMessage,
-				   StartedAtTicks, CompletedAtTicks
+				   StartedAtTicks, CompletedAtTicks,
+				   CurrentFileUploadedBytes, CurrentFileTotalBytes, CurrentFileProgressPercentage
 			FROM SyncState
 			WHERE Id = 1
 			""";
@@ -83,7 +89,10 @@ public sealed class SyncStateRepository : ISyncStateRepository
 				ProgressPercentage = reader.GetDouble(5),
 				ErrorMessage = reader.IsDBNull(6) ? null : reader.GetString(6),
 				StartedAt = reader.IsDBNull(7) ? null : new DateTimeOffset(reader.GetInt64(7), TimeSpan.Zero),
-				CompletedAt = reader.IsDBNull(8) ? null : new DateTimeOffset(reader.GetInt64(8), TimeSpan.Zero)
+				CompletedAt = reader.IsDBNull(8) ? null : new DateTimeOffset(reader.GetInt64(8), TimeSpan.Zero),
+				CurrentFileUploadedBytes = reader.GetInt64(9),
+				CurrentFileTotalBytes = reader.GetInt64(10),
+				CurrentFileProgressPercentage = reader.GetDouble(11)
 			};
 		}
 
@@ -138,7 +147,10 @@ public sealed class SyncStateRepository : ISyncStateRepository
 					ProgressPercentage REAL,
 					ErrorMessage TEXT,
 					StartedAtTicks INTEGER,
-					CompletedAtTicks INTEGER
+					CompletedAtTicks INTEGER,
+					CurrentFileUploadedBytes INTEGER DEFAULT 0,
+					CurrentFileTotalBytes INTEGER DEFAULT 0,
+					CurrentFileProgressPercentage REAL DEFAULT 0
 				);
 				""";
 
